@@ -17,11 +17,6 @@ steps:
   inputs:
     filename: PrepareBuild.cmd
     modifyEnvironment: true
-- task: BatchScript@1
-  displayName: 'Delphivariablen für Build vorbereiten'
-  inputs:
-    filename: PrepareBuild.cmd
-    modifyEnvironment: true
 
 - task: MSBuild@1
   displayName: 'Erzeuge Version 32-Bit'
