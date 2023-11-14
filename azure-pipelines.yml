@@ -2,42 +2,42 @@ pool:
   name: DEV
 
 steps:
-- task: CmdLine@1
-  displayName: Init submodules
-  inputs:
-   filename: 'C:\Program Files\Git\cmd\git.exe'
-   arguments: 'submodule init'
-- task: CmdLine@1
-  displayName: Update submodules
-  inputs:
-   filename: 'C:\Program Files\Git\cmd\git.exe'
-   arguments: 'submodule update'
-- task: BatchScript@1
-  displayName: 'Delphivariablen für Build vorbereiten'
-  inputs:
-    filename: PrepareBuild.cmd
-    modifyEnvironment: true
+# - task: CmdLine@1
+#  displayName: Init submodules
+#  inputs:
+#   filename: 'C:\Program Files\Git\cmd\git.exe'
+#   arguments: 'submodule init'
+#- task: CmdLine@1
+#  displayName: Update submodules
+#  inputs:
+#   filename: 'C:\Program Files\Git\cmd\git.exe'
+#   arguments: 'submodule update'
+#- task: BatchScript@1
+#  displayName: 'Delphivariablen für Build vorbereiten'
+#  inputs:
+#    filename: PrepareBuild.cmd
+#    modifyEnvironment: true
 
-- task: MSBuild@1
-  displayName: 'Erzeuge Version 32-Bit'
-  inputs:
-    solution: PCMRestserver.dproj
-    platform: Win32
-    msbuildArguments: '/t:Clean;Build;Compress /p:config=Release /p:platform=Win32'
+#- task: MSBuild@1
+#  displayName: 'Erzeuge Version 32-Bit'
+#  inputs:
+#    solution: PCMRestserver.dproj
+#    platform: Win32
+#    msbuildArguments: '/t:Clean;Build;Compress /p:config=Release /p:platform=Win32'
 
-- task: MSBuild@1
-  displayName: 'Erzeuge Version 64-Bit'
-  inputs:
-    solution: PCMRestserver.dproj
-    msbuildArchitecture: x64
-    platform: Win64
-    msbuildArguments: '/t:Clean;Build;Compress /p:config=Release /p:platform=Win64'
+#- task: MSBuild@1
+#  displayName: 'Erzeuge Version 64-Bit'
+#  inputs:
+#    solution: PCMRestserver.dproj
+#    msbuildArchitecture: x64
+#    platform: Win64
+#    msbuildArguments: '/t:Clean;Build;Compress /p:config=Release /p:platform=Win64'
 
-- task: BatchScript@1
-  displayName: erzeugte Versionen ins Setupverzeichnis kopieren 
-  inputs:
-    filename: PrepareCopy.cmd
-    modifyEnvironment: true
+#- task: BatchScript@1
+#  displayName: erzeugte Versionen ins Setupverzeichnis kopieren 
+#  inputs:
+#    filename: PrepareCopy.cmd
+#    modifyEnvironment: true
 
 - task: mspremier.PostBuildCleanup.PostBuildCleanup-task.PostBuildCleanup@3
   displayName: 'CleanUp Agent Directories'
