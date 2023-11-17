@@ -15,7 +15,7 @@ uses
   FireDAC.Phys.MySQLDef, FireDAC.VCLUI.Wait, Data.DB, FireDAC.Comp.Client,
   FireDAC.Stan.Param, FireDAC.DatS, FireDAC.DApt.Intf, FireDAC.DApt,
   FireDAC.Comp.UI, FireDAC.Comp.DataSet, IdCustomTCPServer, IdCustomHTTPServer,
-  IdHTTPServer, ZipForge,inifiles,system.DateUtils, REST.Types, REST.Client,
+  IdHTTPServer, inifiles,system.DateUtils, REST.Types, REST.Client,
   REST.Authenticator.Basic, Data.Bind.Components, Data.Bind.ObjectScope;
 type
   TMyIdSSLContext = class(TIdSSLContext)
