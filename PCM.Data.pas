@@ -64,8 +64,11 @@ implementation
 
 {$R *.dfm}
 
-uses PCM.Functions,PCMService.vers0,
-  RESTServer.Service.Version.vers1;
+uses
+  PCM.Functions,
+  PCMService.vers0,
+  RESTServer.Service.Version.vers1,
+  PCM.Strings;
 
 procedure Tdm_PCM.con_PCMBeforeConnect(Sender: TObject);
 begin
@@ -110,14 +113,34 @@ begin
   iniFile.Free;
   try
     con_PCM.Params.Values['Server'] := sServer;
-    con_PCM.Connected:= True;
-    qry_work.Connection:= Con_PCM;
-    result:= true;
-    WriteLog(PCM_LOGname,'Verbindung zum Server ' + sServer + ' wurde hergestellt',0);
+    try
+      WriteLog(PCM_logname, rs_PCM_Verbindungsversuch1 + ' 1 PCM',0);
+      con_PCM.Connected:= True;
+      WriteLog(PCM_logname, rs_PCM_Verbindungsversuch1 + ' 1 PCM ' + rs_PCM_Verbindungsversuch2,0);
+      result:= true;
+    except
+      Sleep(5000);
+      try
+        WriteLog(PCM_logname, rs_PCM_Verbindungsversuch1 + ' 2 pcm',0);
+        con_PCM.Connected:= True;
+        WriteLog(PCM_logname, rs_PCM_Verbindungsversuch1 + ' 2 PCM ' + rs_PCM_Verbindungsversuch2,0);
+        result:= true;
+      except
+        Sleep(5000);
+        try
+          WriteLog(PCM_logname, rs_PCM_Verbindungsversuch1 + ' 3 PCM',0);
+          con_PCM.Connected:= True;
+          WriteLog(PCM_logname, rs_PCM_Verbindungsversuch1 + ' 3 PCM ' + rs_PCM_Verbindungsversuch2,0);
+          result:= true;
+        except
+        end;
+      end;
+    end;
+		qry_work.Connection:= Con_PCM;
+		WriteLog(PCM_LOGname,rs_PCMLog_Verbindungerfolgreich,0);
   except
-    Writelog(PCM_Logname,'Es konnte keine Verbindung zur Datenbank hergestellt werden.',2);
-    Writelog(PCM_Logname,'Bitte überprüfen Sie die Serveraddresse in der Konfigurationsdatei:' + ExtractFilePath(ParamStr(0)) +'PCM.ini.',2);
-    result:= False;
+		Writelog(PCM_Logname,rs_PCMLog_KeineVerbindung1 + sServer + rs_PCMLog_KeineVerbindung2,2);
+		Writelog(PCM_Logname,rs_PCMLog_PCMINIPruefen + ExtractFilePath(ParamStr(0)) +'PCM.ini.',2);
   end;
 end;
 

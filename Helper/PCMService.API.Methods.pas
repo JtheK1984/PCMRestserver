@@ -71,7 +71,11 @@ var
 implementation
 
 uses
-  System.Classes, System.SysUtils, System.StrUtils, System.NetEncoding;
+  System.Classes,
+  System.SysUtils,
+  System.StrUtils,
+  System.NetEncoding,
+  PCM.Strings;
 
 // ID aus Zusatztabellen ermitteln
 function GetIDFromTable(ATable,AValue: String) : Integer;
@@ -457,7 +461,7 @@ begin
                                          'LEFT OUTER JOIN manager_Konfession k ON k.ID = kon.ID_Konfession Where kon.ID_Benutzer = :ID_Benutzer';
   dm_PCM.qry_Work.ParamByName('ID_Benutzer').AsInteger := StrToInt(AID_Benutzer);
   dm_PCM.qry_Work.Open;
-  WriteLog(PCM_Logname,'Kontakte lesen, Anzahl:' + IntToStr(dm_PCM.qry_Work.RecordCount),0);
+  WriteLog(PCM_Logname,rs_PCMAPPServer_Kontakteanzahl+ IntToStr(dm_PCM.qry_Work.RecordCount),0);
   if dm_PCM.qry_Work.RecordCount > 0 then
   begin
     iCode:= 200;
@@ -716,7 +720,7 @@ begin
   joResponseJSON.AddPair(TJSONPair.Create('ErrorCode',TJSONNumber.Create(0)));
   joResponseJSON.AddPair(TJSONPair.Create('Errormessage',TJSONString.Create('')));
   Result := joResponseJSON;
-  WriteLog(PCM_Logname,'Kontakte geprüft, Anzahl:' + IntToStr(iZaehler),0);
+  WriteLog(PCM_Logname,rs_PCMAPPServer_Kontaktepruefung + IntToStr(iZaehler),0);
 end;
 // Kalender ermitteln
 function GetKalender_Intern(AID_Benutzer: string): TJSONObject;
@@ -735,7 +739,7 @@ begin
                                         'WHERE (RecurrenceInfo IS NOT NULL OR START >= DATE_ADD(now(), INTERVAL -30 DAY)) AND ID_Benutzer = :ID and bearbeitetam is null' ;
   dm_PCM.qry_Work.ParamByName('ID').AsInteger := StrToInt(AID_Benutzer);
   dm_PCM.qry_Work.Open;
-  WriteLog(PCM_Logname,'Kalender lesen für Benutzer ' + AID_Benutzer + ', Anzahl:' + IntToStr(dm_PCM.qry_Work.RecordCount),0);
+  WriteLog(PCM_Logname,rs_PCMAPPServer_Kalenderanzahl + IntToStr(dm_PCM.qry_Work.RecordCount),0);
   if dm_PCM.qry_Work.RecordCount > 0 then
   begin
     iCode:= 200;
@@ -955,7 +959,7 @@ begin
   joResponseJSON.AddPair(TJSONPair.Create('ErrorCode',TJSONNumber.Create(0)));
   joResponseJSON.AddPair(TJSONPair.Create('Errormessage',TJSONString.Create('')));
   Result := joResponseJSON;
-  WriteLog(PCM_Logname,'Kalender geprüft, Anzahl:' + IntToStr(iZaehler),0);
+  WriteLog(PCM_Logname,rs_PCMAPPServer_Kalenderpruefung + IntToStr(iZaehler),0);
 end;
 // Passwörter ermitteln
 function GetPasswoerter_Intern(AID_Benutzer: string): TJSONObject;
@@ -974,7 +978,7 @@ begin
                                          'Where ID_Benutzer = :ID';
   dm_PCM.qry_Work.ParamByName('ID').AsInteger := StrToInt(AID_Benutzer);
   dm_PCM.qry_Work.Open;
-  WriteLog(PCM_Logname,'Passwörter lesen, Anzahl:' + IntToStr(dm_PCM.qry_Work.RecordCount),0);
+  WriteLog(PCM_Logname,rs_PCMAPPServer_Passwordanzahl + IntToStr(dm_PCM.qry_Work.RecordCount),0);
   if dm_PCM.qry_Work.RecordCount > 0 then
   begin
     iCode:= 200;
@@ -1151,7 +1155,7 @@ begin
     end;
     iZaehler:= iZaehler + 1;
   end;
-  WriteLog(PCM_Logname,'Passwörter geprüft, Anzahl:' + IntToStr(iZaehler),0);
+  WriteLog(PCM_Logname,rs_PCMAPPServer_Passwordpruefung + IntToStr(iZaehler),0);
   if not Assigned(joResponseJSON) then
     joResponseJSON := TJSONObject.Create;
   joResponseJSON.AddPair(TJSONPair.Create('HasError',TJSONBool.Create(false)));
@@ -1175,7 +1179,7 @@ begin
                                         'WHERE s.ID_Benutzer = :ID';
   dm_PCM.qry_Work.ParamByName('ID').AsInteger := StrToInt(AID_Benutzer);
   dm_PCM.qry_Work.Open;
-  WriteLog(PCM_Logname,'Serials lesen, Anzahl:' + IntToStr(dm_PCM.qry_Work.RecordCount),0);
+  WriteLog(PCM_Logname,rs_PCMAPPServer_Serialsanzahl + IntToStr(dm_PCM.qry_Work.RecordCount),0);
   if dm_PCM.qry_Work.RecordCount > 0 then
   begin
     iCode:= 200;
@@ -1309,7 +1313,7 @@ begin
     end;
     iZaehler:= iZaehler + 1;
   end;
-  WriteLog(PCM_Logname,'Serials geprüft, Anzahl:' + IntToStr(iZaehler),0);
+  WriteLog(PCM_Logname,rs_PCMAPPServer_Serialspruefung + IntToStr(iZaehler),0);
   if not Assigned(joResponseJSON) then
     joResponseJSON := TJSONObject.Create;
   joResponseJSON.AddPair(TJSONPair.Create('HasError',TJSONBool.Create(false)));
@@ -1329,7 +1333,7 @@ begin             //Expenditure
                                          'FROM manager_finanzen_ausgaben Where ID_Benutzer = :ID';
   dm_PCM.qry_Work.ParamByName('ID').AsInteger := StrToInt(AID_Benutzer);
   dm_PCM.qry_Work.Open;
-  WriteLog(PCM_Logname,'Ausgaben lesen, Anzahl:' + IntToStr(dm_PCM.qry_Work.RecordCount),0);
+  WriteLog(PCM_Logname,rs_PCMAPPServer_Ausgabenanzahl + IntToStr(dm_PCM.qry_Work.RecordCount),0);
   if dm_PCM.qry_Work.RecordCount > 0 then
   begin
     iCode:= 200;
@@ -1422,7 +1426,6 @@ begin
       dm_PCM.qry_Work.Close;
       if iAnzahl = 0 then
       begin
-        WriteLog(PCM_Logname,'Insert Ausgaben',0);
         dm_PCM.qry_Work.SQL.Text:=  'INSERT INTO manager_finanzen_Ausgaben (Name,Beschreibung,Kontonummer,Bankleitzahl,Betrag,Fixkosten,Gueltig_Monat,Gueltig_Jahr,ID_Benutzer,Verwendungszweck,FixBetrag' +
                                                 ') Values (:Name,:Beschreibung,:Kontonummer,:Bankleitzahl,:Betrag,:Fixkosten,:Gueltig_Monat,:Gueltig_Jahr,:ID_Benutzer,:Verwendungszweck,:FixBetrag)';
         dm_PCM.qry_Work.ParamByName('Name').AsString:= sReceiver;
@@ -1443,7 +1446,6 @@ begin
       end
       else
       begin
-        WriteLog(PCM_Logname,'Update Ausgaben',0);
         dm_PCM.qry_Work.SQL.Text:=  'Update manager_finanzen_Ausgaben SET Name = :Name,Beschreibung = :Beschreibung,Kontonummer = :Kontonummer,Bankleitzahl = :Bankleitzahl, ' +
                                               'Betrag = :Betrag,Fixkosten = :Fixkosten,Gueltig_Monat = :Gueltig_Monat,Gueltig_Jahr = :Gueltig_Jahr,Verwendungszweck = :Verwendungszweck, ' +
                                               'FixBetrag = :FixBetrag ' +
@@ -1466,7 +1468,7 @@ begin
     end;
     iZaehler:= iZaehler + 1;
   end;
-  WriteLog(PCM_Logname,'Ausgaben geprüft, Anzahl:' + IntToStr(iZaehler),0);
+  WriteLog(PCM_Logname,rs_PCMAPPServer_Ausgabenpruefung + IntToStr(iZaehler),0);
   if not Assigned(joResponseJSON) then
     joResponseJSON := TJSONObject.Create;
   joResponseJSON.AddPair(TJSONPair.Create('HasError',TJSONBool.Create(false)));
@@ -1486,7 +1488,7 @@ begin         //  Receipts
                                          'FROM manager_finanzen_Einnahmen Where ID_Benutzer = :ID';
   dm_PCM.qry_Work.ParamByName('ID').AsInteger := StrToInt(AID_Benutzer);
   dm_PCM.qry_Work.Open;
-  WriteLog(PCM_Logname,'Einnahmen lesen, Anzahl:' + IntToStr(dm_PCM.qry_Work.RecordCount),0);
+  WriteLog(PCM_Logname,rs_PCMAPPServer_Einnahmenanzahl + IntToStr(dm_PCM.qry_Work.RecordCount),0);
   if dm_PCM.qry_Work.RecordCount > 0 then
   begin
     iCode:= 200;
@@ -1562,7 +1564,6 @@ begin
       dm_PCM.qry_Work.Close;
       if iAnzahl = 0 then
       begin
-        WriteLog(PCM_Logname,'Insert Einnahmen',0);
         dm_PCM.qry_Work.SQL.Text:=  'INSERT INTO manager_finanzen_einnahmen (Quelle,Betrag,Bezeichnung,ID_Benutzer,FixBetrag' +
                                                 ') Values (:Quelle,:Betrag,:Bezeichnung,:ID_Benutzer,:FixBetrag)';
         dm_PCM.qry_Work.ParamByName('Quelle').AsString:= sTransmitter;
@@ -1575,7 +1576,6 @@ begin
       end
       else
       begin
-        WriteLog(PCM_Logname,'Update Einnahmen',0);
         dm_PCM.qry_Work.SQL.Text:=  'Update manager_finanzen_einnahmen SET FixBetrag= :FixBetrag,Betrag= :Betrag,Bezeichnung= :Bezeichnung ' +
                                               'Where Quelle = :Quelle';
         dm_PCM.qry_Work.ParamByName('Quelle').AsString:= sTransmitter;
@@ -1588,7 +1588,7 @@ begin
     end;
     iZaehler:= iZaehler + 1;
   end;
-  WriteLog(PCM_Logname,'Einnahmen geprüft, Anzahl:' + IntToStr(iZaehler),0);
+  WriteLog(PCM_Logname,rs_PCMAPPServer_Einnahmenpruefung + IntToStr(iZaehler),0);
   if not Assigned(joResponseJSON) then
     joResponseJSON := TJSONObject.Create;
   joResponseJSON.AddPair(TJSONPair.Create('HasError',TJSONBool.Create(false)));

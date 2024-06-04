@@ -13,8 +13,9 @@ steps:
     targetType: 'inline'
     script: |
       [string] $buildName = "$(versionNumber)"
+      [string] $buildbranch = "$(Build.SourceBranchName)"
       Write-Host "Setting the name of the build to '$buildName'."
-      Write-Host "##vso[build.updatebuildnumber]$buildName"
+      Write-Host "##vso[build.updatebuildnumber]$buildbranch-$buildName"
 - task: CmdLine@1
   displayName: Init submodules
   inputs:
@@ -36,7 +37,7 @@ steps:
   inputs:
     solution: PCMRestserver.dproj
     platform: Win32
-    msbuildArguments: '/t:Clean;Build;Compress /p:config=Release /p:platform=Win32'
+    msbuildArguments: '/t:Clean;Build;CompressWin32 /p:config=Release /p:platform=Win32'
 
 - task: MSBuild@1
   displayName: 'Erzeuge Version 64-Bit'
@@ -44,7 +45,7 @@ steps:
     solution: PCMRestserver.dproj
     msbuildArchitecture: x64
     platform: Win64
-    msbuildArguments: '/t:Clean;Build;Compress /p:config=Release /p:platform=Win64'
+    msbuildArguments: '/t:Clean;Build;Localize;CompressWin64 /p:config=Release /p:platform=Win64'
 
 - task: BatchScript@1
   displayName: erzeugte Versionen ins Setupverzeichnis kopieren 

@@ -49,9 +49,12 @@ implementation
 {$R *.dfm}
 
 uses
-  Web.WebReq, Vcl.Dialogs, Datasnap.DSSession,
+  Web.WebReq,
+  Vcl.Dialogs,
+  Datasnap.DSSession,
   PCMService.vers0,
   RESTServer.Service.Version.vers1,
+  PCM.Strings,
   PCM.Data,
   PCM.Functions;
 
@@ -108,7 +111,7 @@ begin
       valid := True;
     end
     else begin
-//      WriteLog(PCM_Logname,'Falsches Passwort',1);
+      WriteLog(PCM_Logname,rs_PCMLog_FalschesPW,1);
     end;
 end;
 

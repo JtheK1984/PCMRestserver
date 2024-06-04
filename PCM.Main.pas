@@ -68,7 +68,8 @@ uses  PCM.Functions,
       PCM.Data,
       PCMService.WebModules,
       Datasnap.DSSession,
-      IdGlobal;
+      IdGlobal,
+      PCM.Strings;
 
 procedure ServiceController(CtrlCode: DWord); stdcall;
 begin
@@ -97,7 +98,7 @@ begin
   reg := TRegistry.Create(KEY_READ or KEY_Write);
   try
     reg.RootKey:= HKEY_LOCAL_MACHINE;
-    Writelog(PCM_Logname,'Erstelle Registryeinträge',0);
+    Writelog(PCM_Logname,rs_PCMRestserver_Registry,0);
     if reg.OpenKey('System\CurrentControlSet\Services\PCM_Service',False) then
       reg.WriteString('Description','PCM-Resterver');
   finally
@@ -108,7 +109,7 @@ procedure TPCM_Restserver.ServiceStart(Sender: TService;var Started: Boolean);
 begin
   if dm_PCM.ReadServerAdress then
   begin
-    WriteLog(PCM_LOGname,'Verbindung erfolgreich hergestellt',0);
+    WriteLog(PCM_LOGname,rs_PCMLog_Verbindungerfolgreich,0);
     tmrServiceStart.Enabled := True;
   end;
 end;
@@ -158,13 +159,13 @@ begin
 
       FIOHandleSSL := TIdServerIOHandlerSSLOpenSSL.Create(FServer_HTTPS);
       FIOHandleSSL.SSLOptions.CertFile := RESTServerConfig.SSL_PublicKey;
-      Writelog(PCM_Logname,'Public Key: ' + RESTServerConfig.SSL_PublicKey,0);
+      //Writelog(PCM_Logname,'Public Key: ' + RESTServerConfig.SSL_PublicKey,0);
       FIOHandleSSL.SSLOptions.KeyFile := RESTServerConfig.SSL_PrivateKey;
-      Writelog(PCM_Logname,'Private Key: ' + RESTServerConfig.SSL_PrivateKey,0);
+      //Writelog(PCM_Logname,'Private Key: ' + RESTServerConfig.SSL_PrivateKey,0);
       if Length(RESTServerConfig.SSL_CA_Key) > 0 then
       begin
         FIOHandleSSL.SSLOptions.RootCertFile := RESTServerConfig.SSL_CA_Key;
-        Writelog(PCM_Logname,'CA Key: ' + RESTServerConfig.SSL_CA_Key,0);
+        //Writelog(PCM_Logname,'CA Key: ' + RESTServerConfig.SSL_CA_Key,0);
       end;
       FIOHandleSSL.SSLOptions.CipherList :=
       //'ECDHE-ECDSA-AES128-GCM-SHA256:' +
@@ -200,7 +201,7 @@ begin
   except
     ON Ex: Exception DO
     BEGIN
-      Writelog(PCM_logname,'Fehler beim Starten des ZMI - REST Server: ' + Ex.Message,2);
+      Writelog(PCM_logname,rs_PCMRestserver_StartError + Ex.Message,2);
     END;
   end;
 end;
