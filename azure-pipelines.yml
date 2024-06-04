@@ -45,7 +45,7 @@ steps:
     solution: PCMRestserver.dproj
     msbuildArchitecture: x64
     platform: Win64
-    msbuildArguments: '/t:Clean;Build;Localize;CompressWin64 /p:config=Release /p:platform=Win64'
+    msbuildArguments: '/t:Clean;Build;CompressWin64 /p:config=Release /p:platform=Win64'
 
 - task: BatchScript@1
   displayName: erzeugte Versionen ins Setupverzeichnis kopieren 
