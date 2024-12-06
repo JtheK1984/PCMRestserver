@@ -78,6 +78,9 @@
         <VerInfo_Keys>CompanyName=PCM;FileVersion=1.6.0.1;InternalName=PCM Service;LegalCopyright=Jens Henske;LegalTrademarks=;OriginalFilename=PCM Service;ProductName=$(MSBuildProjectName);ProductVersion=1.6;Comments=011023;ProgramID=com.embarcadero.$(MSBuildProjectName);FileDescription=$(MSBuildProjectName)</VerInfo_Keys>
         <DCC_OutputDRCFile>true</DCC_OutputDRCFile>
         <DCC_UnitSearchPath>PCM-Functions;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+        <DCC_DynamicBase>false</DCC_DynamicBase>
+        <DCC_HighEntropyVa>false</DCC_HighEntropyVa>
+        <DCC_NXCompat>false</DCC_NXCompat>				
         <PostBuildEvent><![CDATA[sc start PCM_Restserver
 $(PostBuildEvent)]]></PostBuildEvent>
         <PreBuildEvent><![CDATA[sc stop PCM_Restserver
