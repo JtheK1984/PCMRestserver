@@ -107,6 +107,7 @@ function Tdm_PCM.ReadServerAdress: boolean;
 var
   iniFile: TIniFile;
 begin
+  result:= false;
   iniFile:=TIniFile.create(ExtractFilePath(ParamStr(0)) + 'PCMRestserver.ini');
   sServer:= iniFile.ReadString('Config','Server','localhost');
   iDBType:=iniFile.ReadInteger('Database','Type',0);

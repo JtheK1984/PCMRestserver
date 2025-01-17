@@ -3,6 +3,7 @@ unit PCMService.API.Methods;
 interface
 
 uses
+  {$Region Uses}
   System.JSON,
   Datasnap.DSSession,
   PCM.Main,
@@ -14,12 +15,13 @@ uses
   Vcl.Graphics,
   Winapi.Windows,
   Data.DBXPlatform,FireDac.Stan.Param;
-
+  {$EndRegion Uses}
+// Deklarationen
+  {$Region Declare}
   function GetIDFromTable(ATable,AValue: String) : Integer;
   function CheckTokenGueltig(sToken: String): Boolean;
   function AddZeros(AValue: String; ACount: integer): string;
   function FormatDateTimeToStr(ADate: TDateTime): String;
-
   //////////////////////////////////////////////////////////////////////////////
   // WebAPI - PCM                                                             //
   //////////////////////////////////////////////////////////////////////////////
@@ -59,15 +61,16 @@ uses
   function GetEinnahmen_Intern(AID_Benutzer: string): TJSONObject;
   // Einnnahmen übernehmen
   function SetEinnahmen_Intern(AID_Benutzer: string; ATest: boolean; const AJSONObject: TJSONObject): TJSONObject;
-
+  {$EndRegion Declare}
 var
+  {$Region Var}
   joResponseJSON: TJSONObject;
   joResponseJSONData: TJSONObject;
   jaDetails: TJSonArray;
-  JSonValue: TJSonValue;
+//  JSonValue: TJSonValue;
   iZaehler: integer;
   iAnzahl: integer;
-
+  {$EndRegion Var}
 implementation
 
 uses
@@ -549,9 +552,9 @@ begin
   iZaehler:= 0;
   joResponseJSON := nil;
   jaDetails := nil;
-  jSonValue := nil;
+//  jSonValue := nil;
   jaDetails :=  AJSONObject.GetValue<TJSONArray>('Contacts');
-  for JSonValue in jaDetails do
+  for var JSonValue in jaDetails do
   begin
     JSonValue.TryGetValue<integer>('ID',iID);
     JSonValue.TryGetValue<string>('Salutation',sAnrede);
@@ -792,8 +795,8 @@ var
   iEventType: integer;
   sLocation: String;
   sMessage: String;
-  sStart,sStartDate: String;
-  sFinish,sFinishDate: String;
+  sStartDate: String;
+  sFinishDate: String;
   bCompleteDay: boolean;
   bReminder: boolean;
   sReminderDate: string;
@@ -805,10 +808,10 @@ var
 begin
   joResponseJSON := nil;
   jaDetails := nil;
-  jSonValue := nil;
+//  jSonValue := nil;
   iZaehler:= 0;
   jaDetails :=  AJSONObject.GetValue<TJSONArray>('Calendar');
-  for JSonValue in jaDetails do
+  for var JSonValue in jaDetails do
   begin
     JSonValue.TryGetValue<integer>('ID',iID);
     JSonValue.TryGetValue<string>('Caption',sCaption);
@@ -1050,10 +1053,10 @@ var
 begin
   joResponseJSON := nil;
   jaDetails := nil;
-  jSonValue := nil;
+//  jSonValue := nil;
   iZaehler:= 0;
   jaDetails :=  AJSONObject.GetValue<TJSONArray>('Passwords');
-  for JSonValue in jaDetails do
+  for var JSonValue in jaDetails do
   begin
     JSonValue.TryGetValue<integer>('ID',iID);
     JSonValue.TryGetValue<string>('Passwordname',sPasswordname);
@@ -1229,10 +1232,10 @@ var
 begin
   joResponseJSON := nil;
   jaDetails := nil;
-  jSonValue := nil;
+//  jSonValue := nil;
   iZaehler:= 0;
   jaDetails :=  AJSONObject.GetValue<TJSONArray>('Serials');
-  for JSonValue in jaDetails do
+  for var JSonValue in jaDetails do
   begin
     JSonValue.TryGetValue<integer>('ID',iID);
     JSonValue.TryGetValue<string>('Serialname',sSerialname);
@@ -1393,10 +1396,10 @@ var
 begin
   joResponseJSON := nil;
   jaDetails := nil;
-  jSonValue := nil;
+//  jSonValue := nil;
   iZaehler:= 0;
   jaDetails :=  AJSONObject.GetValue<TJSONArray>('Expenditure');
-  for JSonValue in jaDetails do
+  for var JSonValue in jaDetails do
   begin
     JSonValue.TryGetValue<integer>('ID',iID);
     JSonValue.TryGetValue<string>('Receiver',sReceiver);
@@ -1536,10 +1539,10 @@ var
 begin
   joResponseJSON := nil;
   jaDetails := nil;
-  jSonValue := nil;
+//  jSonValue := nil;
   iZaehler:= 0;
   jaDetails :=  AJSONObject.GetValue<TJSONArray>('Receipts');
-  for JSonValue in jaDetails do
+  for var JSonValue in jaDetails do
   begin
     JSonValue.TryGetValue<integer>('ID',iID);
     JSonValue.TryGetValue<string>('Transmitter',sTransmitter);
