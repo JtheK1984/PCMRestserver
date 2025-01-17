@@ -158,10 +158,11 @@ begin
       FServer_HTTPS.Bindings.Clear;
 
       FIOHandleSSL := TIdServerIOHandlerSSLOpenSSL.Create(FServer_HTTPS);
+      FIOHandleSSL.SSLOptions.SSLVersions:= [sslvTLSv1, sslvTLSv1_1, sslvTLSv1_2];
       FIOHandleSSL.SSLOptions.CertFile := RESTServerConfig.SSL_PublicKey;
-      //Writelog(PCM_Logname,'Public Key: ' + RESTServerConfig.SSL_PublicKey,0);
+      Writelog(PCM_Logname,'Public Key: ' + RESTServerConfig.SSL_PublicKey,0);
       FIOHandleSSL.SSLOptions.KeyFile := RESTServerConfig.SSL_PrivateKey;
-      //Writelog(PCM_Logname,'Private Key: ' + RESTServerConfig.SSL_PrivateKey,0);
+      Writelog(PCM_Logname,'Private Key: ' + RESTServerConfig.SSL_PrivateKey,0);
       if Length(RESTServerConfig.SSL_CA_Key) > 0 then
       begin
         FIOHandleSSL.SSLOptions.RootCertFile := RESTServerConfig.SSL_CA_Key;
