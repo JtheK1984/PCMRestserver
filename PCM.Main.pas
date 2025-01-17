@@ -169,16 +169,20 @@ begin
       end;
       FIOHandleSSL.SSLOptions.CipherList :=
       'ECDHE-ECDSA-AES128-GCM-SHA256:' +
+      'ECDHE-ECDSA-AES256-GCM-SHA384:' +
       'ECDHE-RSA-AES128-GCM-SHA256:' +
       'ECDHE-RSA-AES256-GCM-SHA384:' +
-      'ECDHE-ECDSA-AES256-GCM-SHA384:' +
-      'DHE-RSA-AES128-GCM-SHA256:' +
+      'ECDHE-RSA-AES128-SHA:' +
       'ECDHE-RSA-AES128-SHA256:' +
-      'DHE-RSA-AES128-SHA256:' +
-      'ECDHE-RSA-AES256-SHA384:' +
-      'DHE-RSA-AES256-SHA384:' +
       'ECDHE-RSA-AES256-SHA256:' +
+      'ECDHE-RSA-AES256-SHA384:' +
+      'DHE-RSA-AES128-GCM-SHA256:' +
+      'DHE-RSA-AES128-SHA256:' +
+      'DHE-RSA-AES256-SHA384:' +
       'DHE-RSA-AES256-SHA256:';
+
+
+
 //      'HIGH:' +
 //      '!aNULL:' +
 //      '!eNULL:' +
