@@ -80,7 +80,7 @@
         <DCC_UnitSearchPath>PCM-Functions;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <DCC_DynamicBase>false</DCC_DynamicBase>
         <DCC_HighEntropyVa>false</DCC_HighEntropyVa>
-        <DCC_NXCompat>false</DCC_NXCompat>				
+        <DCC_NXCompat>false</DCC_NXCompat>
         <PostBuildEvent><![CDATA[sc start PCM_Restserver
 $(PostBuildEvent)]]></PostBuildEvent>
         <PreBuildEvent><![CDATA[sc stop PCM_Restserver
@@ -167,17 +167,14 @@ $(PostBuildEvent)]]></PostBuildEvent>
         </DCCReference>
         <DCCReference Include="PCM.Main.pas">
             <Form>PCM_Restserver</Form>
-            <FormType>dfm</FormType>
             <DesignClass>TService</DesignClass>
         </DCCReference>
         <DCCReference Include="Helper\PCMService.WebModules.pas">
             <Form>webPCMModul</Form>
-            <FormType>dfm</FormType>
             <DesignClass>TWebModule</DesignClass>
         </DCCReference>
         <DCCReference Include="PCM.Data.pas">
             <Form>dm_PCM</Form>
-            <FormType>dfm</FormType>
             <DesignClass>TDataModule</DesignClass>
         </DCCReference>
         <DCCReference Include="Helper\PCMService.vers0.pas"/>

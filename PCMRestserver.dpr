@@ -3,6 +3,7 @@ program PCMRestserver;
 uses
   Vcl.SvcMgr,
   Web.WebReq,
+  Windows,
   IdHTTPWebBrokerBridge,
   RESTServer.Service.Version.vers1 in 'Helper\RESTServer.Service.Version.vers1.pas' {frmServerMethods: TDSServerModule},
   PCM.Main in 'PCM.Main.pas' {PCM_Restserver: TService},
