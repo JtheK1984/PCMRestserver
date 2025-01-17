@@ -168,27 +168,27 @@ begin
         //Writelog(PCM_Logname,'CA Key: ' + RESTServerConfig.SSL_CA_Key,0);
       end;
       FIOHandleSSL.SSLOptions.CipherList :=
-      //'ECDHE-ECDSA-AES128-GCM-SHA256:' +
+      'ECDHE-ECDSA-AES128-GCM-SHA256:' +
       'ECDHE-RSA-AES128-GCM-SHA256:' +
-      //'ECDHE-RSA-AES256-GCM-SHA384:' +
-      //'ECDHE-ECDSA-AES256-GCM-SHA384:' +
-      //'DHE-RSA-AES128-GCM-SHA256:' +
-      //'ECDHE-RSA-AES128-SHA256:' +
-      //'DHE-RSA-AES128-SHA256:' +
-      //'ECDHE-RSA-AES256-SHA384:' +
-      //'DHE-RSA-AES256-SHA384:' +
-      //'ECDHE-RSA-AES256-SHA256:' +
-      //'DHE-RSA-AES256-SHA256:' +
-      'HIGH:' +
-      '!aNULL:' +
-      '!eNULL:' +
-      '!EXPORT:' +
-      '!DES:' +
-      '!RC4:' +
-      '!MD5:' +
-      '!PSK:' +
-      '!SRP:' +
-      '!CAMELLIA';
+      'ECDHE-RSA-AES256-GCM-SHA384:' +
+      'ECDHE-ECDSA-AES256-GCM-SHA384:' +
+      'DHE-RSA-AES128-GCM-SHA256:' +
+      'ECDHE-RSA-AES128-SHA256:' +
+      'DHE-RSA-AES128-SHA256:' +
+      'ECDHE-RSA-AES256-SHA384:' +
+      'DHE-RSA-AES256-SHA384:' +
+      'ECDHE-RSA-AES256-SHA256:' +
+      'DHE-RSA-AES256-SHA256:';
+//      'HIGH:' +
+//      '!aNULL:' +
+//      '!eNULL:' +
+//      '!EXPORT:' +
+//      '!DES:' +
+//      '!RC4:' +
+//      '!MD5:' +
+//      '!PSK:' +
+//      '!SRP:' +
+//      '!CAMELLIA';
 
       FServer_HTTPS.IOHandler := fIOHandleSSL;
       FServer_HTTPS.DefaultPort := RESTServerConfig.Port_HTTPS;
