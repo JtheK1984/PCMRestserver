@@ -160,27 +160,30 @@ begin
       FIOHandleSSL := TIdServerIOHandlerSSLOpenSSL.Create(FServer_HTTPS);
       FIOHandleSSL.SSLOptions.SSLVersions:= [sslvTLSv1, sslvTLSv1_1, sslvTLSv1_2];
       FIOHandleSSL.SSLOptions.CertFile := RESTServerConfig.SSL_PublicKey;
-      Writelog(PCM_Logname,'Public Key: ' + RESTServerConfig.SSL_PublicKey,0);
+      Writelog(PCM_Logname,'CertFile: ' + RESTServerConfig.SSL_PublicKey,0);
       FIOHandleSSL.SSLOptions.KeyFile := RESTServerConfig.SSL_PrivateKey;
-      Writelog(PCM_Logname,'Private Key: ' + RESTServerConfig.SSL_PrivateKey,0);
+      Writelog(PCM_Logname,'KeyFile: ' + RESTServerConfig.SSL_PrivateKey,0);
+
       if Length(RESTServerConfig.SSL_CA_Key) > 0 then
       begin
         FIOHandleSSL.SSLOptions.RootCertFile := RESTServerConfig.SSL_CA_Key;
-        //Writelog(PCM_Logname,'CA Key: ' + RESTServerConfig.SSL_CA_Key,0);
+        Writelog(PCM_Logname,'RootCertFile: ' + RESTServerConfig.SSL_CA_Key,0);
       end;
-//      FIOHandleSSL.SSLOptions.CipherList :=
-//      'ECDHE-ECDSA-AES128-GCM-SHA256:' +
-//      'ECDHE-ECDSA-AES256-GCM-SHA384:' +
-//      'ECDHE-RSA-AES128-GCM-SHA256:' +
-//      'ECDHE-RSA-AES256-GCM-SHA384:' +
-//      'ECDHE-RSA-AES128-SHA:' +
-//      'ECDHE-RSA-AES128-SHA256:' +
-//      'ECDHE-RSA-AES256-SHA256:' +
-//      'ECDHE-RSA-AES256-SHA384:' +
-//      'DHE-RSA-AES128-GCM-SHA256:' +
-//      'DHE-RSA-AES128-SHA256:' +
-//      'DHE-RSA-AES256-SHA384:' +
-//      'DHE-RSA-AES256-SHA256:';
+      FIOHandleSSL.SSLOptions.CipherList :=
+
+     'ECDHE-ECDSA-AES128-GCM-SHA256:' +
+     'ECDHE-ECDSA-AES256-GCM-SHA384:' +
+     'ECDHE-RSA-AES128-GCM-SHA256:' +
+      'ECDHE-RSA-AES256-GCM-SHA384:' +
+      'ECDHE-RSA-AES128-SHA:' +
+      'ECDHE-RSA-AES128-SHA256:' +
+//
+      'ECDHE-RSA-AES256-SHA256:' +
+      'ECDHE-RSA-AES256-SHA384:' +
+      'DHE-RSA-AES128-GCM-SHA256:' +
+      'DHE-RSA-AES128-SHA256:' +
+      'DHE-RSA-AES256-SHA384:' +
+      'DHE-RSA-AES256-SHA256:';
 
 
 
