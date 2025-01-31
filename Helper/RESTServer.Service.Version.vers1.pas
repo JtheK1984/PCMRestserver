@@ -3,15 +3,33 @@ unit RESTServer.Service.Version.vers1;
 interface
 
 uses
+  {$Region Uses}
   WinApi.Windows,
-  System.SysUtils, System.Classes, System.JSON, REST.JSON,
-  Datasnap.DSServer, Datasnap.DSAuth, DataSnap.DSProviderDataModuleAdapter,
-  DataSnap.DSSession, Data.DBXPlatform,Data.DBXCommon,
-  IdBaseComponent, IdSASL, IdSASLUserPass, IdSASL_CRAMBase, IdSASL_CRAM_MD5,
-  IdHash, IdHashMessageDigest, IdHashSHA, IdHashCRC,Data.DB,
+  System.SysUtils,
+  System.Classes,
+  System.JSON,
+  REST.JSON,
+  Data.DB,
+  Data.DBXCommon,
+  Data.DBXPlatform,
+  Datasnap.DSAuth,
+  DataSnap.DSProviderDataModuleAdapter,
+  Datasnap.DSServer,
+  DataSnap.DSSession,
+  IdBaseComponent,
+  IdHash,
+  IdHashCRC,
+  IdHashMessageDigest,
+  IdHashSHA,
+  IdSASL,
+  IdSASL_CRAMBase,
+  IdSASL_CRAM_MD5,
+  IdSASLUserPass,
   RESTServer.Service.Records;
+  {$EndRegion Uses}
 {$DEFINE PCMService}
 type
+  {$Region Type}
   {$METHODINFO ON}
   v1 = class(TComponent)
   private
@@ -23,6 +41,7 @@ type
     ////////////////////////////////////////////////////////////////////////////
     // PCM - RESTfunktionen                                                   //
     ////////////////////////////////////////////////////////////////////////////
+    {$Region Rest-API}
     // Token erstellen
     [TRoleAuth('WebAPI_PCM')]
     function Createtoken: TJSONObject;
@@ -37,15 +56,18 @@ type
     function UpdateCreateBackup: TJSONObject;
     [TRoleAuth('WebAPI_PCM')]
     function UpdateGetKalenderConfig(const AJSONObject: TJSONObject): TJSONObject;
-
+    {$EndRegion Rest-API}
     ////////////////////////////////////////////////////////////////////////////
     // APP - RESTfunktionen                                                   //
     ////////////////////////////////////////////////////////////////////////////
+    {$Region APP-API}
     // Login ermitteln
     [TRoleAuth('WebAPI_PCM')]
     function CheckServer: TJSonObject;
     [TRoleAuth('WebAPI_PCM')]
-    function GetLogin: TJSonObject;
+    function CheckLogin: TJSonObject;
+    [TRoleAuth('WebAPI_PCM')]
+    function AcceptSetDeviceID(const AJSONObject: TJSONObject): TJSonObject;
     // kontakte ermitteln
     [TRoleAuth('WebAPI_PCM')]
     function UpdateGetContacts: TJSonObject;
@@ -82,20 +104,36 @@ type
     // Einnahmen übernehmen
     [TRoleAuth('WebAPI_PCM')]
     function AcceptSetReceipts(const AJSONObject: TJSONObject): TJSONObject;
-
-
+    // Belege ermitteln
+    [TRoleAuth('WebAPI_PCM')]
+    function UpdateGetVouchers: TJSONObject;
+    // Belege übernehmen
+    [TRoleAuth('WebAPI_PCM')]
+    function AcceptSetVouchers(const AJSONObject: TJSONObject): TJSONObject;
+    // Gutscheine ermitteln
+    [TRoleAuth('WebAPI_PCM')]
+    function UpdateGetGiftCards: TJSONObject;
+    // Gutscheine übernehmen
+    [TRoleAuth('WebAPI_PCM')]
+    function AcceptSetGiftCards(const AJSONObject: TJSONObject): TJSONObject;
+    {$EndRegion APP-API}
   end;
   {$METHODINFO OFF}
-
-
+  {$EndRegion Type}
 implementation
+
 uses
-  PCM.Functions,
+  {$Region Uses}
   PCM.Data,
+  PCM.Functions,
   PCMService.API.Methods,
   PCMService.WebModules;
-
-// Ergebnis in JSON umwandeln
+  {$EndRegion Uses}
+////////////////////////////////////////////////////////////////////////////////
+// Hilfsfunktionen                                                            //
+////////////////////////////////////////////////////////////////////////////////
+{$Region Hilfsfunktionen}
+  // Ergebnis in JSON umwandeln
 procedure v1.ResultToJSONContent(const AJSONObject: TJSONObject);
 var
   metaData: TDSInvocationMetadata;
@@ -104,9 +142,11 @@ begin
   metaData.ResponseContentType := 'application/json; charset=utf-8';
   metaData.ResponseContent := AJSONObject.ToJSON;
 end;
+{$EndRegion Hilfsfunktionen}
 ////////////////////////////////////////////////////////////////////////////////
 // PCM - RESTfunktionen                                                       //
 ////////////////////////////////////////////////////////////////////////////////
+{$Region Web-Api}
 // PCM - Token
 // Token erstellen
 function v1.Createtoken: TJSONObject;
@@ -174,35 +214,65 @@ begin
   Result := GetKalenderConfig_Intern(AJSONObject);
   ResultToJSONContent(Result);
 end;
+{$EndRegion Web-Api}
 ////////////////////////////////////////////////////////////////////////////////
 // APP - RESTfunktionen                                                       //
 ////////////////////////////////////////////////////////////////////////////////
-// PCM - APP
+{$Region APP-Api}
+// Server und Login Prüfen
+{$Region Server_Login}
 function v1.CheckServer: TJSonObject;
 begin
   Result:= CheckServer_Intern;
   ResultToJSONContent(Result);
 end;
-// Login Daten ermitteln
-function v1.GetLogin: TJSonObject;
+// Login prüfen
+function v1.CheckLogin: TJSonObject;
 begin
-  Result:= GetLogin_Intern;
+  Result:= CheckLogin_Intern;
   ResultToJSONContent(Result);
 end;
+// Token übernehmen
+function v1.acceptSetDeviceID(const AJSONObject: TJSONObject): TJSonObject;
+var
+  metaData: TDSInvocationMetadata;
+begin
+  metaData := GetInvocationMetadata;
+  if CheckUser then
+  begin
+    metaData.ResponseCode:= 200;
+    Result:= SetDeviceID_intern(AJSONObject);
+  end
+  else begin
+    metaData.ResponseCode:= 401;
+    Result:= BadRequest;
+  end;
+  ResultToJSONContent(Result);
+end;
+{$ENdRegion Server_Login}
+// Kontakte
+{$Region Kontakte}
 // Kontakte ermitteln
 function v1.UpdateGetContacts: TJSonObject;
 var
   metaData: TDSInvocationMetadata;
 begin
   metaData := GetInvocationMetadata;
-  if metaData.QueryParams.Count = 1 then
+  if CheckUser then
   begin
-    Result := GetKontakte_Intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]));
+    if metaData.QueryParams.Count = 1 then
+    begin
+      Result := GetKontakte_Intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]));
+    end
+    else
+    begin
+      metaData.ResponseCode:= 400;
+      Result := GetKontakte_Intern('');
+    end;
   end
-  else
-  begin
-    metaData.ResponseCode:= 400;
-    Result := GetKontakte_Intern('');
+  else begin
+    metaData.ResponseCode:= 401;
+    Result:= BadRequest;
   end;
   ResultToJSONContent(Result);
 end;
@@ -212,32 +282,49 @@ var
   metaData: TDSInvocationMetadata;
 begin
   metaData := GetInvocationMetadata;
-  if metaData.QueryParams.Count = 2 then
+  if CheckUser then
   begin
-    metaData.ResponseCode:= 200;
-    Result:= SetKontakte_Intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]),StrToBool(StringReplace(metaData.QueryParams[1],'Test=','',[rfReplaceAll,rfIgnoreCase])), AJSONObject);
+    if metaData.QueryParams.Count = 1 then
+    begin
+      metaData.ResponseCode:= 200;
+      Result:= SetKontakte_Intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]), AJSONObject);
+    end
+    else
+    begin
+      metaData.ResponseCode:= 400;
+      Result:= SetKontakte_Intern('',AJSONObject);
+    end;
   end
-  else
-  begin
-    metaData.ResponseCode:= 400;
-    Result:= SetKontakte_Intern('',false,AJSONObject);
+  else begin
+    metaData.ResponseCode:= 401;
+    Result:= BadRequest;
   end;
   ResultToJSONContent(Result);
 end;
+{$EndRegion Kontakte}
+// Kalender
+{$Region Kalender}
 // Kalender ermitteln
 function v1.UpdateGetCalendar: TJSonObject;
 var
   metaData: TDSInvocationMetadata;
 begin
   metaData := GetInvocationMetadata;
-  if metaData.QueryParams.Count = 1 then
+  if CheckUser then
   begin
-    Result := GetKalender_Intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]));
+    if metaData.QueryParams.Count = 1 then
+    begin
+      Result := GetKalender_Intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]));
+    end
+    else
+    begin
+      metaData.ResponseCode:= 400;
+      Result := GetKalender_Intern('');
+    end;
   end
-  else
-  begin
-    metaData.ResponseCode:= 400;
-    Result := GetKalender_Intern('');
+  else begin
+    metaData.ResponseCode:= 401;
+    Result:= BadRequest;
   end;
   ResultToJSONContent(Result);
 end;
@@ -247,32 +334,49 @@ var
   metaData: TDSInvocationMetadata;
 begin
   metaData := GetInvocationMetadata;
-  if metaData.QueryParams.Count = 2 then
+  if CheckUser then
   begin
-    metaData.ResponseCode:= 200;
-    Result:= SetKalender_Intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]),StrToBool(StringReplace(metaData.QueryParams[1],'Test=','',[rfReplaceAll,rfIgnoreCase])), AJSONObject);
+    if metaData.QueryParams.Count = 1 then
+    begin
+      metaData.ResponseCode:= 200;
+      Result:= SetKalender_Intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]), AJSONObject);
+    end
+    else
+    begin
+      metaData.ResponseCode:= 400;
+      Result:= SetKalender_Intern('',AJSONObject);
+    end;
   end
-  else
-  begin
-    metaData.ResponseCode:= 400;
-    Result:= SetKalender_Intern('',false,AJSONObject);
+  else begin
+    metaData.ResponseCode:= 401;
+    Result:= BadRequest;
   end;
   ResultToJSONContent(Result);
 end;
+{$EndRegion Kalender}
+// Passwörter
+{$Region Passwords}
 // Passwörter ermitteln
 function v1.UpdateGetPasswords: TJSonObject;
 var
   metaData: TDSInvocationMetadata;
 begin
   metaData := GetInvocationMetadata;
-  if metaData.QueryParams.Count = 1 then
+  if CheckUser then
   begin
-    Result := GetPasswoerter_Intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]));
+    if metaData.QueryParams.Count = 1 then
+    begin
+      Result := GetPasswoerter_Intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]));
+    end
+    else
+    begin
+      metaData.ResponseCode:= 400;
+      Result := GetPasswoerter_Intern('');
+    end;
   end
-  else
-  begin
-    metaData.ResponseCode:= 400;
-    Result := GetPasswoerter_Intern('');
+  else begin
+    metaData.ResponseCode:= 401;
+    Result:= BadRequest;
   end;
   ResultToJSONContent(Result);
 end;
@@ -282,32 +386,49 @@ var
   metaData: TDSInvocationMetadata;
 begin
   metaData := GetInvocationMetadata;
-  if metaData.QueryParams.Count = 2 then
+  if CheckUser then
   begin
-    metaData.ResponseCode:= 200;
-    Result:= SetPasswoerter_Intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]),StrToBool(StringReplace(metaData.QueryParams[1],'Test=','',[rfReplaceAll,rfIgnoreCase])), AJSONObject);
+    if metaData.QueryParams.Count = 1 then
+    begin
+      metaData.ResponseCode:= 200;
+      Result:= SetPasswoerter_Intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]), AJSONObject);
+    end
+    else
+    begin
+      metaData.ResponseCode:= 400;
+      Result:= SetPasswoerter_Intern('',AJSONObject);
+    end;
   end
-  else
-  begin
-    metaData.ResponseCode:= 400;
-    Result:= SetPasswoerter_Intern('',false,AJSONObject);
+  else begin
+    metaData.ResponseCode:= 401;
+    Result:= BadRequest;
   end;
   ResultToJSONContent(Result);
 end;
+{$EndRegion Passwords}
+// Serials
+{$Region Serials}
 // Serials ermitteln
 function v1.UpdateGetSerials: TJSONObject;
 var
   metaData: TDSInvocationMetadata;
 begin
   metaData := GetInvocationMetadata;
-  if metaData.QueryParams.Count = 1 then
+  if CheckUser then
   begin
-    Result := GetSerials_Intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]));
+    if metaData.QueryParams.Count = 1 then
+    begin
+      Result := GetSerials_Intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]));
+    end
+    else
+    begin
+      metaData.ResponseCode:= 400;
+      Result := GetSerials_Intern('');
+    end;
   end
-  else
-  begin
-    metaData.ResponseCode:= 400;
-    Result := GetSerials_Intern('');
+  else begin
+    metaData.ResponseCode:= 401;
+    Result:= BadRequest;
   end;
   ResultToJSONContent(Result);
 end;
@@ -317,67 +438,49 @@ var
   metaData: TDSInvocationMetadata;
 begin
   metaData := GetInvocationMetadata;
-  if metaData.QueryParams.Count = 2 then
+  if CheckUser then
   begin
-    metaData.ResponseCode:= 200;
-    Result:= SetSerials_Intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]),StrToBool(StringReplace(metaData.QueryParams[1],'Test=','',[rfReplaceAll,rfIgnoreCase])), AJSONObject);
+    if metaData.QueryParams.Count = 1 then
+    begin
+      metaData.ResponseCode:= 200;
+      Result:= SetSerials_Intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]), AJSONObject);
+    end
+    else
+    begin
+      metaData.ResponseCode:= 400;
+      Result:= SetSerials_Intern('',AJSONObject);
+    end;
   end
-  else
-  begin
-    metaData.ResponseCode:= 400;
-    Result:= SetSerials_Intern('',false,AJSONObject);
+  else begin
+    metaData.ResponseCode:= 401;
+    Result:= BadRequest;
   end;
   ResultToJSONContent(Result);
 end;
-// Ausgaben ermitteln
-function v1.UpdateGetExpenditure: TJSONObject;
-var
-  metaData: TDSInvocationMetadata;
-begin
-  metaData := GetInvocationMetadata;
-  if metaData.QueryParams.Count = 1 then
-  begin
-    Result := GetAusgaben_Intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]));
-  end
-  else
-  begin
-    metaData.ResponseCode:= 400;
-    Result := GetAusgaben_Intern('');
-  end;
-  ResultToJSONContent(Result);
-end;
-// Ausgaben übernehmen
-function v1.AcceptSetExpenditure(const AJSONObject: TJSONObject): TJSonObject;
-var
-  metaData: TDSInvocationMetadata;
-begin
-  metaData := GetInvocationMetadata;
-  if metaData.QueryParams.Count = 2 then
-  begin
-    metaData.ResponseCode:= 200;
-    Result:= SetAusgaben_Intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]),StrToBool(StringReplace(metaData.QueryParams[1],'Test=','',[rfReplaceAll,rfIgnoreCase])), AJSONObject);
-  end
-  else
-  begin
-    metaData.ResponseCode:= 400;
-    Result:= SetAusgaben_Intern('',false,AJSONObject);
-  end;
-  ResultToJSONContent(Result);
-end;
+{$ENdRegion Serials}
+// Einnahmen
+{$Region Einnahmen}
 // Einnahmen ermitteln
 function v1.UpdateGetReceipts: TJSONObject;
 var
   metaData: TDSInvocationMetadata;
 begin
   metaData := GetInvocationMetadata;
-  if metaData.QueryParams.Count = 1 then
+  if CheckUser then
   begin
-    Result := GetEinnahmen_Intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]));
+    if metaData.QueryParams.Count = 1 then
+    begin
+      Result := GetEinnahmen_Intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]));
+    end
+    else
+    begin
+      metaData.ResponseCode:= 400;
+      Result := GetEinnahmen_Intern('');
+    end;
   end
-  else
-  begin
-    metaData.ResponseCode:= 400;
-    Result := GetEinnahmen_Intern('');
+  else begin
+    metaData.ResponseCode:= 401;
+    Result:= BadRequest;
   end;
   ResultToJSONContent(Result);
 end;
@@ -387,18 +490,182 @@ var
   metaData: TDSInvocationMetadata;
 begin
   metaData := GetInvocationMetadata;
-  if metaData.QueryParams.Count = 2 then
+  if CheckUser then
   begin
-    metaData.ResponseCode:= 200;
-    Result:= SetEinnahmen_Intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]),StrToBool(StringReplace(metaData.QueryParams[1],'Test=','',[rfReplaceAll,rfIgnoreCase])), AJSONObject);
+    if metaData.QueryParams.Count = 1 then
+    begin
+      metaData.ResponseCode:= 200;
+      Result:= SetEinnahmen_Intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]), AJSONObject);
+    end
+    else
+    begin
+      metaData.ResponseCode:= 400;
+      Result:= SetEinnahmen_Intern('',AJSONObject);
+    end;
   end
-  else
-  begin
-    metaData.ResponseCode:= 400;
-    Result:= SetEinnahmen_Intern('',false,AJSONObject);
+  else begin
+    metaData.ResponseCode:= 401;
+    Result:= BadRequest;
   end;
   ResultToJSONContent(Result);
 end;
-
+{$EndRegion Einnahmen}
+// Ausgaben
+{$Region Ausgaben}
+// Ausgaben ermitteln
+function v1.UpdateGetExpenditure: TJSONObject;
+var
+  metaData: TDSInvocationMetadata;
+begin
+  metaData := GetInvocationMetadata;
+  if CheckUser then
+  begin
+    if metaData.QueryParams.Count = 1 then
+    begin
+      Result := GetAusgaben_Intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]));
+    end
+    else
+    begin
+      metaData.ResponseCode:= 400;
+      Result := GetAusgaben_Intern('');
+    end;
+  end
+  else begin
+    metaData.ResponseCode:= 401;
+    Result:= BadRequest;
+  end;
+  ResultToJSONContent(Result);
+end;
+// Ausgaben übernehmen
+function v1.AcceptSetExpenditure(const AJSONObject: TJSONObject): TJSonObject;
+var
+  metaData: TDSInvocationMetadata;
+begin
+  metaData := GetInvocationMetadata;
+  if CheckUser then
+  begin
+    if metaData.QueryParams.Count = 1 then
+    begin
+      metaData.ResponseCode:= 200;
+      Result:= SetAusgaben_Intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]), AJSONObject);
+    end
+    else
+    begin
+      metaData.ResponseCode:= 400;
+      Result:= SetAusgaben_Intern('',AJSONObject);
+    end;
+  end
+  else begin
+    metaData.ResponseCode:= 401;
+    Result:= BadRequest;
+  end;
+  ResultToJSONContent(Result);
+end;
+{$EndRegion Ausgaben}
+// Belege
+{$Region Belege}
+// Belege ermitteln
+function v1.UpdateGetVouchers: TJSONObject;
+var
+  metaData: TDSInvocationMetadata;
+begin
+  metaData := GetInvocationMetadata;
+  if CheckUser then
+  begin
+    if metaData.QueryParams.Count = 1 then
+    begin
+      Result := GetVouchers_Intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]));
+    end
+    else
+    begin
+      metaData.ResponseCode:= 400;
+      Result := GetVouchers_Intern('');
+    end;
+  end
+  else begin
+    metaData.ResponseCode:= 401;
+    Result:= BadRequest;
+  end;
+  ResultToJSONContent(Result);
+end;
+// Belege übernehmen
+function v1.AcceptSetVouchers(const AJSONObject: TJSONObject): TJSONObject;
+var
+  metaData: TDSInvocationMetadata;
+begin
+  metaData := GetInvocationMetadata;
+  if CheckUser then
+  begin
+    if metaData.QueryParams.Count = 1 then
+    begin
+      metaData.ResponseCode:= 200;
+      Result:= SetVouchers_Intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]), AJSONObject);
+    end
+    else
+    begin
+      metaData.ResponseCode:= 400;
+      Result:= SetVouchers_Intern('',AJSONObject);
+    end;
+  end
+  else begin
+    metaData.ResponseCode:= 401;
+    Result:= BadRequest;
+  end;
+  ResultToJSONContent(Result);
+end;
+{$EndRegion Belege}
+// Gutscheine
+{$Region Gutscheine}
+// Gutscheine ermitteln
+function v1.UpdateGetGiftCards: TJSONObject;
+var
+  metaData: TDSInvocationMetadata;
+begin
+  metaData := GetInvocationMetadata;
+  if CheckUser then
+  begin
+    if metaData.QueryParams.Count = 1 then
+    begin
+      Result := GetGiftCards_Intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]));
+    end
+    else
+    begin
+      metaData.ResponseCode:= 400;
+      Result := GetGiftCards_Intern('');
+    end;
+  end
+  else begin
+    metaData.ResponseCode:= 401;
+    Result:= BadRequest;
+  end;
+  ResultToJSONContent(Result);
+end;
+// Gutscheine übernehmen
+function v1.AcceptSetGiftCards(const AJSONObject: TJSONObject): TJSONObject;
+var
+  metaData: TDSInvocationMetadata;
+begin
+  metaData := GetInvocationMetadata;
+  if CheckUser then
+  begin
+    if metaData.QueryParams.Count = 1 then
+    begin
+      metaData.ResponseCode:= 200;
+      Result:= SetGiftCards_Intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]), AJSONObject);
+    end
+    else
+    begin
+      metaData.ResponseCode:= 400;
+      Result:= SetGiftCards_Intern('',AJSONObject);
+    end;
+  end
+  else begin
+    metaData.ResponseCode:= 401;
+    Result:= BadRequest;
+  end;
+  ResultToJSONContent(Result);
+end;
+{$EndRegion Gutscheine}
+{$EndRegion APP-Api}
 end.
 

@@ -3,19 +3,52 @@ unit PCM.Data;
 interface
 
 uses
-  System.SysUtils, System.Classes, System.Variants, Data.DB, dxmdaset, FireDAC.Stan.Intf,
-  FireDAC.Stan.Option, FireDAC.Stan.Error, FireDAC.UI.Intf, FireDAC.Phys.Intf,
-  FireDAC.Stan.Def, FireDAC.Stan.Pool, FireDAC.Stan.Async, FireDAC.Phys,
-  FireDAC.Phys.ADSDef, FireDAC.Phys.MSSQLDef, FireDAC.VCLUI.Wait,
-  FireDAC.Comp.UI, FireDAC.Phys.ODBCBase, FireDAC.Phys.MSSQL, FireDAC.Phys.ADS,
-  FireDAC.Comp.Client, idHash,inifiles, FireDAC.Stan.Param, FireDAC.DatS,
-  FireDAC.DApt.Intf, FireDAC.DApt, FireDAC.Phys.MySQL, FireDAC.Phys.MySQLDef,
-  FireDAC.Comp.DataSet, IPPeerServer, DbxCompressionFilter,
-  DbxSocketChannelNative, Datasnap.DSCommonServer,System.JSON,
-  Datasnap.DSTCPServerTransport, Datasnap.DSServer, Datasnap.DSAuth,Datasnap.DSSession,
-  Datasnap.DSHTTP, Datasnap.DSHTTPWebBroker,IdHashMessageDigest;
-
+  {$Region Uses}
+  Data.DB,
+  Datasnap.DSAuth,
+  Datasnap.DSCommonServer,
+  Datasnap.DSHTTP,
+  Datasnap.DSHTTPWebBroker,
+  Datasnap.DSServer,
+  Datasnap.DSSession,
+  Datasnap.DSTCPServerTransport,
+  DbxCompressionFilter,
+  DbxSocketChannelNative,
+  dxmdaset,
+  FireDAC.Comp.Client,
+  FireDAC.Comp.DataSet,
+  FireDAC.Comp.UI,
+  FireDAC.DApt,
+  FireDAC.DApt.Intf,
+  FireDAC.DatS,
+  FireDAC.Phys,
+  FireDAC.Phys.ADS,
+  FireDAC.Phys.ADSDef,
+  FireDAC.Phys.Intf,
+  FireDAC.Phys.MSSQL,
+  FireDAC.Phys.MSSQLDef,
+  FireDAC.Phys.MySQL,
+  FireDAC.Phys.MySQLDef,
+  FireDAC.Phys.ODBCBase,
+  FireDAC.Stan.Async,
+  FireDAC.Stan.Def,
+  FireDAC.Stan.Error,
+  FireDAC.Stan.Intf,
+  FireDAC.Stan.Option,
+  FireDAC.Stan.Param,
+  FireDAC.Stan.Pool,
+  FireDAC.UI.Intf,
+  FireDAC.VCLUI.Wait,
+  idHash,inifiles,
+  IdHashMessageDigest,
+  IPPeerServer,
+  System.Classes,
+  System.JSON,
+  System.SysUtils,
+  System.Variants;
+  {$ENdRegion Uses}
 type
+  {$Region Type}
   TPCMRestparam = record
     sParam: string;
   end;
@@ -23,10 +56,10 @@ type
 type
   Tdm_PCM = class(TDataModule)
     con_PCM: TFDConnection;
-    qry_work: TFDQuery;
     FDPhysMySQLDriverLink1: TFDPhysMySQLDriverLink;
     FDPhysMSSQLDriverLink1: TFDPhysMSSQLDriverLink;
     FDPhysADSDriverLink1: TFDPhysADSDriverLink;
+    qry_work: TFDQuery;
     qry_work1: TFDQuery;
     qry_Service: TFDQuery;
     procedure con_PCMBeforeConnect(Sender: TObject);
@@ -34,17 +67,20 @@ type
     { Private-Deklarationen }
   public
     { Public-Deklarationen }
-    sServer: String;
     iDBType: integer;
+    sServer: String;
     function ReadServerAdress: boolean;
   end;
-
+  {$EndRegion Type}
 var
+  {$Region var}
   dm_PCM: Tdm_PCM;
   arRestParam: TPCMRestParamter;
   icode: integer;
   sMessage: String;
+  {$EndRegion var}
 const
+  {$Region const}
   DB_MYSQL = 0;
   DB_MSSQL = 1;
   DB_ADS = 2;
@@ -57,19 +93,21 @@ const
   PCM_Logname =  'PCMRestserver';
   PCM_Connectionname =  'Restserver';
   PCM_Programmnummer =  14;
-
+  {$EndRegion const}
 implementation
-
 {%CLASSGROUP 'Vcl.Controls.TControl'}
-
 {$R *.dfm}
-
 uses
+  {$Region Uses}
   PCM.Functions,
+  PCM.Strings,
   PCMService.vers0,
-  RESTServer.Service.Version.vers1,
-  PCM.Strings;
-
+  RESTServer.Service.Version.vers1;
+  {$EndRegion Uses}
+////////////////////////////////////////////////////////////////////////////////
+// Datamodulfunctions                                                         //
+////////////////////////////////////////////////////////////////////////////////
+{$Region Datamodul}
 procedure Tdm_PCM.con_PCMBeforeConnect(Sender: TObject);
 begin
   con_PCM.LoginPrompt := False;
@@ -144,5 +182,5 @@ begin
 		Writelog(PCM_Logname,rs_PCMLog_PCMINIPruefen + ExtractFilePath(ParamStr(0)) +'PCM.ini.',2);
   end;
 end;
-
+{$EndRegion Datamodul}
 end.

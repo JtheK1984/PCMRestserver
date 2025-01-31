@@ -3,21 +3,64 @@ unit PCM.Main;
 interface
 
 uses
-  Winapi.Windows, Winapi.Messages, Registry,
-  System.SysUtils, System.Classes,
-  Vcl.Graphics, Vcl.Controls, Vcl.SvcMgr, Vcl.Dialogs,
-  IdHTTPWebBrokerBridge, Web.HTTPApp, IdContext, IdSSLOpenSSL,
-  RESTServer.Service.Records, Vcl.ExtCtrls, IdSSLOpenSSLHeaders,
-  IdBaseComponent, IdComponent, IdIOHandler, IdIOHandlerSocket,
-  IdIOHandlerStack, IdSSL, FireDAC.Stan.Intf, FireDAC.Stan.Option,
-  FireDAC.Stan.Error, FireDAC.UI.Intf, FireDAC.Phys.Intf, FireDAC.Stan.Def,
-  FireDAC.Stan.Pool, FireDAC.Stan.Async, FireDAC.Phys, FireDAC.Phys.MySQL,
-  FireDAC.Phys.MySQLDef, FireDAC.VCLUI.Wait, Data.DB, FireDAC.Comp.Client,
-  FireDAC.Stan.Param, FireDAC.DatS, FireDAC.DApt.Intf, FireDAC.DApt,
-  FireDAC.Comp.UI, FireDAC.Comp.DataSet, IdCustomTCPServer, IdCustomHTTPServer,
-  IdHTTPServer, inifiles,system.DateUtils, REST.Types, REST.Client,
-  REST.Authenticator.Basic, Data.Bind.Components, Data.Bind.ObjectScope;
+  {$Region Ues}
+  Data.Bind.Components,
+  Data.Bind.ObjectScope,
+  Data.DB,
+  Datasnap.DSHTTP,
+  FireDAC.Comp.Client,
+  FireDAC.Comp.DataSet,
+  FireDAC.Comp.UI,
+  FireDAC.DApt,
+  FireDAC.DApt.Intf,
+  FireDAC.DatS,
+  FireDAC.Phys,
+  FireDAC.Phys.Intf,
+  FireDAC.Phys.MySQL,
+  FireDAC.Phys.MySQLDef,
+  FireDAC.Stan.Async,
+  FireDAC.Stan.Def,
+  FireDAC.Stan.Error,
+  FireDAC.Stan.Intf,
+  FireDAC.Stan.Option,
+  FireDAC.Stan.Param,
+  FireDAC.Stan.Pool,
+  FireDAC.UI.Intf,
+  FireDAC.VCLUI.Wait,
+  IdBaseComponent,
+  IdComponent,
+  IdContext,
+  IdCustomHTTPServer,
+  IdCustomTCPServer,
+  IdHTTPServer,
+  IdHTTPWebBrokerBridge,
+  IdIOHandler,
+  IdIOHandlerSocket,
+  IdIOHandlerStack,
+  IdServerIOHandler,
+  IdSSL,
+  IdSSLOpenSSL,
+  IdSSLOpenSSLHeaders,
+  inifiles,
+  Registry,
+  REST.Authenticator.Basic,
+  REST.Client,
+  REST.Types,
+  RESTServer.Service.Records,
+  System.Classes,
+  system.DateUtils,
+  System.SysUtils,
+  Vcl.Controls,
+  Vcl.Dialogs,
+  Vcl.ExtCtrls,
+  Vcl.Graphics,
+  Vcl.SvcMgr,
+  Web.HTTPApp,
+  Winapi.Messages,
+  Winapi.Windows;
+  {$EndRegion Ues}
 type
+  {$Region Type}
   TMyIdSSLContext = class(TIdSSLContext)
 end;
 type
@@ -33,10 +76,6 @@ type
     FDManager: TFDManager;
     FDGUIxWaitCursor1: TFDGUIxWaitCursor;
     FDPhysMySQLDriverLink1: TFDPhysMySQLDriverLink;
-    RESTClient1: TRESTClient;
-    RESTRequest1: TRESTRequest;
-    RESTResponse1: TRESTResponse;
-    HTTPBasicAuthenticator1: THTTPBasicAuthenticator;
     procedure ServiceStart(Sender: TService; var Started: Boolean);
     procedure ServiceStop(Sender: TService; var Stopped: Boolean);
     procedure DoParseAuthentication(AContext: TIdContext; const AAuthType, AAuthData: String; var VUsername, VPassword: String; var VHandled: Boolean);
@@ -54,23 +93,28 @@ type
     RESTServerConfig: TRESTServerConfig;
     function GetServiceController: TServiceController; override;
   end;
-
+  {$EndRegion Type}
 var
+  {$Region var}
   PCM_Restserver: TPCM_Restserver;
   fINI: TextFile;
   filename: String;
-
+  {$EndRegion var}
 implementation
-
 {$R *.dfm}
-
-uses  PCM.Functions,
-      PCM.Data,
-      PCMService.WebModules,
-      Datasnap.DSSession,
-      IdGlobal,
-      PCM.Strings;
-
+uses
+  {$Region Uses}
+  PCM.Functions,
+  PCM.Data,
+  PCMService.WebModules,
+  Datasnap.DSSession,
+  IdGlobal,
+  PCM.Strings;
+  {$EndRegion Uses}
+////////////////////////////////////////////////////////////////////////////////
+// Servicefunctions                                                           //
+////////////////////////////////////////////////////////////////////////////////
+{$Region Servicefunctions}
 procedure ServiceController(CtrlCode: DWord); stdcall;
 begin
   PCM_Restserver.Controller(CtrlCode);
@@ -158,7 +202,6 @@ begin
       FServer_HTTPS.Bindings.Clear;
 
       FIOHandleSSL := TIdServerIOHandlerSSLOpenSSL.Create(FServer_HTTPS);
-      FIOHandleSSL.SSLOptions.SSLVersions:= [sslvTLSv1, sslvTLSv1_1, sslvTLSv1_2];
       FIOHandleSSL.SSLOptions.CertFile := RESTServerConfig.SSL_PublicKey;
       Writelog(PCM_Logname,'CertFile: ' + RESTServerConfig.SSL_PublicKey,0);
       FIOHandleSSL.SSLOptions.KeyFile := RESTServerConfig.SSL_PrivateKey;
@@ -169,35 +212,31 @@ begin
         FIOHandleSSL.SSLOptions.RootCertFile := RESTServerConfig.SSL_CA_Key;
         Writelog(PCM_Logname,'RootCertFile: ' + RESTServerConfig.SSL_CA_Key,0);
       end;
-      FIOHandleSSL.SSLOptions.CipherList :=
-
-     'ECDHE-ECDSA-AES128-GCM-SHA256:' +
-     'ECDHE-ECDSA-AES256-GCM-SHA384:' +
-     'ECDHE-RSA-AES128-GCM-SHA256:' +
-      'ECDHE-RSA-AES256-GCM-SHA384:' +
-      'ECDHE-RSA-AES128-SHA:' +
-      'ECDHE-RSA-AES128-SHA256:' +
-//
-      'ECDHE-RSA-AES256-SHA256:' +
-      'ECDHE-RSA-AES256-SHA384:' +
-      'DHE-RSA-AES128-GCM-SHA256:' +
-      'DHE-RSA-AES128-SHA256:' +
-      'DHE-RSA-AES256-SHA384:' +
-      'DHE-RSA-AES256-SHA256:';
-
-
-
-//      'HIGH:' +
-//      '!aNULL:' +
-//      '!eNULL:' +
-//      '!EXPORT:' +
-//      '!DES:' +
-//      '!RC4:' +
-//      '!MD5:' +
-//      '!PSK:' +
-//      '!SRP:' +
-//      '!CAMELLIA';
-
+      FIOHandleSSL.SSLOptions.Method := TIdSSLVersion.sslvTLSv1_2;
+      FIOHandleSSL.SSLOptions.SSLVersions := [TIdSSLVersion.sslvTLSv1_2];
+      FIOHandleSSL.SSLOptions.CipherList := //'ECDHE-ECDSA-AES128-GCM-SHA256:' +
+        'ECDHE-RSA-AES128-GCM-SHA:' +
+        'ECDHE-RSA-AES128-GCM-SHA256:' +
+        //'ECDHE-RSA-AES256-GCM-SHA384:' +
+        //'ECDHE-ECDSA-AES256-GCM-SHA384:' +
+        'DHE-RSA-AES128-GCM-SHA:' +
+        'DHE-RSA-AES128-GCM-SHA256:' +
+        //'ECDHE-RSA-AES128-SHA256:' +
+        //'DHE-RSA-AES128-SHA256:' +
+        //'ECDHE-RSA-AES256-SHA384:' +
+        //'DHE-RSA-AES256-SHA384:' +
+        //'ECDHE-RSA-AES256-SHA256:' +
+        //'DHE-RSA-AES256-SHA256:' +
+        'HIGH:' +
+        '!aNULL:' +
+        '!eNULL:' +
+        '!EXPORT:' +
+        '!DES:' +
+        '!RC4:' +
+        '!MD5:' +
+        '!PSK:' +
+        '!SRP:' +
+        '!CAMELLIA';
       FServer_HTTPS.IOHandler := fIOHandleSSL;
       FServer_HTTPS.DefaultPort := RESTServerConfig.Port_HTTPS;
       FServer_HTTPS.ReuseSocket:= rstrue;
@@ -213,5 +252,5 @@ begin
     END;
   end;
 end;
-
+{$EndRegion Servicefunctions}
 end.

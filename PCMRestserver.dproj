@@ -7,7 +7,7 @@
         <MainSource>PCMRestserver.dpr</MainSource>
         <Base>True</Base>
         <Config Condition="'$(Config)'==''">Debug</Config>
-        <Platform Condition="'$(Platform)'==''">Win64</Platform>
+        <Platform Condition="'$(Platform)'==''">Win32</Platform>
         <TargetedPlatforms>3</TargetedPlatforms>
         <AppType>Application</AppType>
     </PropertyGroup>
@@ -70,14 +70,13 @@
         <DCC_S>false</DCC_S>
         <DCC_F>false</DCC_F>
         <DCC_K>false</DCC_K>
-        <DCC_Define>PCMService;$(DCC_Define)</DCC_Define>
         <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
         <VerInfo_MinorVer>6</VerInfo_MinorVer>
         <VerInfo_Build>1</VerInfo_Build>
         <VerInfo_Locale>1031</VerInfo_Locale>
         <VerInfo_Keys>CompanyName=PCM;FileVersion=1.6.0.1;InternalName=PCM Service;LegalCopyright=Jens Henske;LegalTrademarks=;OriginalFilename=PCM Service;ProductName=$(MSBuildProjectName);ProductVersion=1.6;Comments=011023;ProgramID=com.embarcadero.$(MSBuildProjectName);FileDescription=$(MSBuildProjectName)</VerInfo_Keys>
         <DCC_OutputDRCFile>true</DCC_OutputDRCFile>
-        <DCC_UnitSearchPath>PCM-Functions;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+        <DCC_UnitSearchPath>PCM-Functions;PCM-Functions\WebView2;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <DCC_DynamicBase>false</DCC_DynamicBase>
         <DCC_HighEntropyVa>false</DCC_HighEntropyVa>
         <DCC_NXCompat>false</DCC_NXCompat>
@@ -90,8 +89,6 @@ $(PreBuildEvent)]]></PreBuildEvent>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win32)'!=''">
         <PreBuildEventCancelOnError>false</PreBuildEventCancelOnError>
-        <PreBuildEvent><![CDATA[sc stop PCM_Service
-$(PreBuildEvent)]]></PreBuildEvent>
         <PostBuildEventCancelOnError>false</PostBuildEventCancelOnError>
         <DCC_Namespace>Winapi;System.Win;Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win;Bde;$(DCC_Namespace)</DCC_Namespace>
         <DCC_UsePackage>FireDACTDataDriver;FireDACSqliteDriver;FireDACDSDriver;frxTee22;DBXSqliteDriver;FireDACPgDriver;TeeDB;tethering;vclib;DataSnapClient;DataSnapServer;DataSnapCommon;DataSnapProviderClient;DBXSybaseASEDriver;frxe22;vclimg;DatasnapConnectorsFreePascal;appanalytics;vcldb;vcldsnap;fmxFireDAC;DBXDb2Driver;DBXOracleDriver;vclribbon;IndyIPServer;vcl;DBXMSSQLDriver;IndyIPCommon;CloudService;FmxTeeUI;FireDACIBDriver;CodeSiteExpressPkg;DataSnapFireDAC;FireDACDBXDriver;soapserver;dsnapxml;FireDACInfxDriver;FireDACDb2Driver;adortl;FireDACASADriver;frx22;FireDACODBCDriver;RESTBackendComponents;emsclientfiredac;FireDACCommon;Tee;DBXOdbcDriver;ibmonitor;vclFireDAC;DataSnapNativeClient;svnui;FireDACCommonDriver;bindcompdbx;vclactnband;FMXTee;TeeUI;bindcompvcl;vclie;frxDB22;FireDACADSDriver;vcltouch;emsclient;VclSmp;FireDAC;DBXInformixDriver;FireDACMSSQLDriver;Intraweb;VCLRESTComponents;DataSnapConnectors;DataSnapServerMidas;dsnapcon;DBXFirebirdDriver;FireDACMySQLDriver;soapmidas;vclx;adsdxe8studio;svn;DBXSybaseASADriver;FireDACOracleDriver;RESTComponents;FireDACMSAccDriver;DataSnapIndy10ServerTransport;IndyIPClient;$(DCC_UsePackage)</DCC_UsePackage>
@@ -128,9 +125,6 @@ $(PreBuildEvent)]]></PreBuildEvent>
         <DCC_RemoteDebug>false</DCC_RemoteDebug>
         <BT_BuildType>Debug</BT_BuildType>
         <VerInfo_Keys>CompanyName=PCM;FileVersion=1.6.0.1;InternalName=PCM Service 32-Bit;LegalCopyright=Jens Henske;LegalTrademarks=;OriginalFilename=PCM Service 32-Bit;ProductName=$(MSBuildProjectName) 32-Bit;ProductVersion=1.6;Comments=011023;ProgramID=com.embarcadero.$(MSBuildProjectName);FileDescription=$(MSBuildProjectName)</VerInfo_Keys>
-        <Debugger_RunParams>/install</Debugger_RunParams>
-        <PostBuildEvent><![CDATA[sc start PCM_Service$(PostBuildEvent)
-$(PostBuildEvent)]]></PostBuildEvent>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_1_Win64)'!=''">
         <AppDPIAwarenessMode>PerMonitorV2</AppDPIAwarenessMode>
@@ -148,8 +142,6 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <BT_BuildType>Debug</BT_BuildType>
         <VerInfo_Keys>CompanyName=PCM;FileVersion=1.6.0.1;InternalName=PCM Service 32-Bit;LegalCopyright=Jens Henske;LegalTrademarks=;OriginalFilename=PCM Service 32-Bit;ProductName=$(MSBuildProjectName) 32-Bit;ProductVersion=1.6;Comments=011023;ProgramID=com.embarcadero.$(MSBuildProjectName);FileDescription=$(MSBuildProjectName)</VerInfo_Keys>
         <Icon_MainIcon>PCMService_Icon.ico</Icon_MainIcon>
-        <PostBuildEvent><![CDATA[sc start PCM_Service
-$(PostBuildEvent)]]></PostBuildEvent>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_2_Win64)'!=''">
         <AppDPIAwarenessMode>PerMonitorV2</AppDPIAwarenessMode>
@@ -226,6 +218,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
                 </VersionInfoKeys>
                 <Excluded_Packages>
                     <Excluded_Packages Name="$(BDSBIN)\dcloffice2k290.bpl">Microsoft Office 2000 Beispiele für gekapselte Komponenten für Automatisierungsserver</Excluded_Packages>
+                    <Excluded_Packages Name="$(BDSBIN)\dclofficexp290.bpl">Microsoft Office XP Beispiele für gekapselte Komponenten für Automation Server</Excluded_Packages>
                 </Excluded_Packages>
                 <Source>
                     <Source Name="MainSource">PCMRestserver.dpr</Source>
@@ -1234,11 +1227,11 @@ $(PostBuildEvent)]]></PostBuildEvent>
     <Import Project="$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(PRODUCTVERSION)\UserTools.proj" Condition="Exists('$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(PRODUCTVERSION)\UserTools.proj')"/>
     <Import Project="$(MSBuildProjectName).deployproj" Condition="Exists('$(MSBuildProjectName).deployproj')"/>
     <PropertyGroup Condition="'$(Config)'=='Debug' And '$(Platform)'=='Win32'">
-        <PreBuildEvent>sc stop PCM_Service&amp;sc stop PCM_Restserver</PreBuildEvent>
+        <PreBuildEvent>sc stop PCM_Restserver</PreBuildEvent>
         <PreBuildEventIgnoreExitCode>True</PreBuildEventIgnoreExitCode>
         <PreLinkEvent/>
         <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-        <PostBuildEvent>sc start PCM_Service$(PostBuildEvent)&amp;sc start PCM_Restserver</PostBuildEvent>
+        <PostBuildEvent>sc start PCM_Restserver</PostBuildEvent>
         <PostBuildEventIgnoreExitCode>True</PostBuildEventIgnoreExitCode>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Debug' And '$(Platform)'=='Win64'">
@@ -1250,11 +1243,11 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <PostBuildEventIgnoreExitCode>True</PostBuildEventIgnoreExitCode>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Release' And '$(Platform)'=='Win32'">
-        <PreBuildEvent>sc stop PCM_Service&amp;sc stop PCM_Restserver</PreBuildEvent>
+        <PreBuildEvent>sc stop PCM_Restserver</PreBuildEvent>
         <PreBuildEventIgnoreExitCode>True</PreBuildEventIgnoreExitCode>
         <PreLinkEvent/>
         <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-        <PostBuildEvent>sc start PCM_Service&amp;sc start PCM_Restserver</PostBuildEvent>
+        <PostBuildEvent>sc start PCM_Restserver</PostBuildEvent>
         <PostBuildEventIgnoreExitCode>True</PostBuildEventIgnoreExitCode>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Release' And '$(Platform)'=='Win64'">

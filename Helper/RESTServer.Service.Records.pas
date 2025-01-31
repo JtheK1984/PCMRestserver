@@ -3,6 +3,7 @@ unit RESTServer.Service.Records;
 interface
 
 type
+  {$Region Type}
   TRESTServerConfig = record
     Port_HTTP: Integer;
     Port_HTTPS: Integer;
@@ -15,25 +16,27 @@ type
     procedure LoadData;
   end;
 
-  TZMITokenData = record
+  TPCMTokenData = record
     ID_MA: Integer;
     PrgNr: Integer;
-
     procedure Init;
   end;
-
+  {$EndRegion Type}
 implementation
 
 uses
-  System.SysUtils, System.IniFiles;//, ZMIDebug;
-
-{ TRESTServerConfig }
-
+  {$Region Uses}
+  System.IniFiles,
+  System.SysUtils;
+  {$EndRegion Type}
+////////////////////////////////////////////////////////////////////////////////
+// Config                                                                     //
+////////////////////////////////////////////////////////////////////////////////
+{$Region Config}
 procedure TRESTServerConfig.Init;
 begin
   Self := Default(TRESTServerConfig);
 end;
-
 procedure TRESTServerConfig.LoadData;
 var
   iniRESTServer: TIniFile;
@@ -70,12 +73,14 @@ begin
   end;
 
 end;
-
-{ TZMITokenData }
-
-procedure TZMITokenData.Init;
+{$EndRegion Config}
+////////////////////////////////////////////////////////////////////////////////
+// Token                                                                      //
+////////////////////////////////////////////////////////////////////////////////
+{$Region Token}
+procedure TPCMTokenData.Init;
 begin
-  Self := Default(TZMITokenData);
+  Self := Default(TPCMTokenData);
 end;
-
+{$EndRegion Token}
 end.

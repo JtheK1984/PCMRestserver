@@ -3,14 +3,16 @@ unit PCMService.WebModules;
 interface
 
 uses
+  {$Region Uses}
   System.SysUtils, System.Classes, IdHashMessageDigest,
   Web.HTTPApp, Web.WebFileDispatcher, Web.HTTPProd,
   Datasnap.DSHTTPWebBroker, Datasnap.DSServer, DataSnap.DSAuth, Datasnap.DSCommonServer,
   IPPeerServer, IdContext, Datasnap.DSHTTP, Data.DBXPlatform,
   DbxCompressionFilter, DbxSocketChannelNative, Datasnap.DSTCPServerTransport,
   Datasnap.DSHTTPCommon,RESTServer.Service.Records ;
-
+  {$EndRegion Uses}
 type
+  {$Region Type}
   TwebPCMModul = class(TWebModule)
     wdispAuth: TDSHTTPWebDispatcher;
     authMngr: TDSAuthenticationManager;
@@ -19,36 +21,25 @@ type
     dsSrvClassService_V1: TDSServerClass;
     wdispServiceHTTPS: TDSHTTPWebDispatcher;
     DSServer1: TDSServer;
-    procedure dsSrvClassAuthGetClass(DSServerClass: TDSServerClass;
-      var PersistentClass: TPersistentClass);
-    procedure authMngrUserAuthenticate(Sender: TObject;
-      const Protocol, Context, User, Password: string; var valid: Boolean;
-      UserRoles: TStrings);
-    procedure WebModule1DefaultHandlerAction(Sender: TObject;
-      Request: TWebRequest; Response: TWebResponse; var Handled: Boolean);
-    procedure dsSrvClassService_V1GetClass(DSServerClass: TDSServerClass;
-      var PersistentClass: TPersistentClass);
-    procedure WebModuleBeforeDispatch(Sender: TObject; Request: TWebRequest;
-      Response: TWebResponse; var Handled: Boolean);
-
+    procedure dsSrvClassAuthGetClass(DSServerClass: TDSServerClass; var PersistentClass: TPersistentClass);
+    procedure authMngrUserAuthenticate(Sender: TObject; const Protocol, Context, User, Password: string; var valid: Boolean; UserRoles: TStrings);
+    procedure WebModule1DefaultHandlerAction(Sender: TObject; Request: TWebRequest; Response: TWebResponse; var Handled: Boolean);
+    procedure dsSrvClassService_V1GetClass(DSServerClass: TDSServerClass; var PersistentClass: TPersistentClass);
+    procedure WebModuleBeforeDispatch(Sender: TObject; Request: TWebRequest; Response: TWebResponse; var Handled: Boolean);
   private
     { Private-Deklarationen }
-
   public
     { Public-Deklarationen }
-
   end;
-
+  {$EndRegion Type}
 var
+  {$Region Var}
   WebModuleClass: TComponentClass = TwebPCMModul;
-
-
+  {$EndRegion Var}
 implementation
-
-
 {$R *.dfm}
-
 uses
+  {$Region Uses}
   Web.WebReq,
   Vcl.Dialogs,
   Datasnap.DSSession,
@@ -57,7 +48,11 @@ uses
   PCM.Strings,
   PCM.Data,
   PCM.Functions;
-
+  {$EndRegion Uses}
+////////////////////////////////////////////////////////////////////////////////
+// Procedures                                                                 //
+////////////////////////////////////////////////////////////////////////////////
+{$Region Procedures}
 procedure TwebPCMModul.WebModule1DefaultHandlerAction(Sender: TObject; Request: TWebRequest; Response: TWebResponse; var Handled: Boolean);
 begin
   Response.StatusCode:= 200;
@@ -91,30 +86,28 @@ var
   sMD5PassLogin,sMD5PassConst: String;
 begin
   TDSSessionManager.GetThreadSession.PutData('Username',User);
-//  if User = 'PCM' then
-//  begin
-    with TIdHashMessageDigest5.Create do
-    begin
-      sMD5PassLogin := HashStringAsHex(Password);
-      sMD5PassLogin := LowerCase(sMD5PassLogin);
-      sMD5PassConst := HashStringAsHex(Password);
-      sMD5PassConst := LowerCase(sMD5PassConst);
-      Free;
-    end;
-    TDSSessionManager.GetThreadSession.PutData('Password', sMD5PassLogin);
-    if sMD5PassConst = sMD5PassLogin then
-    begin
-      UserRoles.Add('WebAPI_PCM');
-      UserRoles.Add('WebAPI_PCMManager');
-      UserRoles.Add('WebAPI_PCMMP3');
-      UserRoles.Add('App_PCM');
-      valid := True;
-    end
-    else begin
-      WriteLog(PCM_Logname,rs_PCMLog_FalschesPW,1);
-    end;
+  with TIdHashMessageDigest5.Create do
+  begin
+    sMD5PassLogin := HashStringAsHex(Password);
+    sMD5PassLogin := LowerCase(sMD5PassLogin);
+    sMD5PassConst := HashStringAsHex(Password);
+    sMD5PassConst := LowerCase(sMD5PassConst);
+    Free;
+  end;
+  TDSSessionManager.GetThreadSession.PutData('Password', sMD5PassLogin);
+  if sMD5PassConst = sMD5PassLogin then
+  begin
+    UserRoles.Add('WebAPI_PCM');
+    UserRoles.Add('WebAPI_PCMManager');
+    UserRoles.Add('WebAPI_PCMMP3');
+    UserRoles.Add('App_PCM');
+    valid := True;
+  end
+  else begin
+    WriteLog(PCM_Logname,rs_PCMLog_FalschesPW,1);
+  end;
 end;
-
+{$EndRegion Procedures}
 initialization
 
 finalization

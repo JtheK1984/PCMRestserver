@@ -4,24 +4,35 @@ interface
 
 uses
   {$Region Uses}
-  System.JSON,
-  Datasnap.DSSession,
-  PCM.Main,
-  PCM.Data,
-  PCM.Functions,
-  System.Dateutils,
   Data.db,
+  Data.DBXPlatform,
+  Datasnap.DSSession,
   FireDAC.Comp.Client,
+  FireDac.Stan.Param,
+  System.Classes,
+  System.Dateutils,
+  System.JSON,
+  System.NetEncoding,
+  System.StrUtils,
+  System.SysUtils,
   Vcl.Graphics,
-  Winapi.Windows,
-  Data.DBXPlatform,FireDac.Stan.Param;
+  Winapi.Windows;
   {$EndRegion Uses}
 // Deklarationen
   {$Region Declare}
+  function BadRequest: TJSONObject;
   function GetIDFromTable(ATable,AValue: String) : Integer;
   function CheckTokenGueltig(sToken: String): Boolean;
+  function CheckUser: boolean;
   function AddZeros(AValue: String; ACount: integer): string;
   function FormatDateTimeToStr(ADate: TDateTime): String;
+  procedure UpdateFieldValues_String(AField, ATable, AValue: String; AID:Integer);Overload;
+  procedure UpdateFieldValues_Ansistring(AField, ATable: String; AValue: Ansistring; AID:Integer);Overload
+  procedure UpdateFieldValues_TDateTime(AField, ATable: String; AValue: TDateTime; AID:Integer);Overload
+  procedure UpdateFieldValues_TDate(AField, ATable: String; AValue: TDate; AID:Integer);Overload
+  procedure UpdateFieldValues_Boolean(AField, ATable: String; AValue: Boolean; AID:Integer);Overload
+  procedure UpdateFieldValues_Integer(AField, ATable: String; AValue: Integer; AID:Integer);Overload
+  procedure UpdateFieldValues_Float(AField, ATable: String; AValue: Double; AID:Integer);Overload
   //////////////////////////////////////////////////////////////////////////////
   // WebAPI - PCM                                                             //
   //////////////////////////////////////////////////////////////////////////////
@@ -35,32 +46,42 @@ uses
   //////////////////////////////////////////////////////////////////////////////
   // Servercheck
   function Checkserver_Intern: TJSONObject;
-  // Login ermitteln
-  function GetLogin_Intern: TJSONObject;
+  // Prüfen ob Login erlaubt
+  function CheckLogin_Intern: TJSONObject;
+  // Set Token
+  function SetDeviceID_Intern(const AJSONObject: TJSONObject): TJSONObject;
   // Kontakte ermitteln
   function GetKontakte_Intern(AID_Benutzer: string): TJSONObject;
   // Kontakte übernehmen
-  function SetKontakte_Intern(AID_Benutzer: string; ATest: boolean; const AJSONObject: TJSONObject): TJSONObject;
+  function SetKontakte_Intern(AID_Benutzer: string; const AJSONObject: TJSONObject): TJSONObject;
   // Kalender ermitteln
   function GetKalender_Intern(AID_Benutzer: string): TJSONObject;
   // Kalender übernehmen
-  function SetKalender_Intern(AID_Benutzer: string; ATest: boolean; const AJSONObject: TJSONObject): TJSONObject;
+  function SetKalender_Intern(AID_Benutzer: string; const AJSONObject: TJSONObject): TJSONObject;
   // Passwörter ermitteln
   function GetPasswoerter_Intern(AID_Benutzer: string): TJSONObject;
   // Passwörter übernehmen
-  function SetPasswoerter_Intern(AID_Benutzer: string; ATest: boolean; const AJSONObject: TJSONObject): TJSONObject;
+  function SetPasswoerter_Intern(AID_Benutzer: string; const AJSONObject: TJSONObject): TJSONObject;
   // Serials ermitteln
   function GetSerials_Intern(AID_Benutzer: string): TJSONObject;
   // Serials übernehmen
-  function SetSerials_Intern(AID_Benutzer: string; ATest: boolean; const AJSONObject: TJSONObject): TJSONObject;
-  // Ausgaben ermitteln
-  function GetAusgaben_Intern(AID_Benutzer: string): TJSONObject;
-  // Ausgaben übernehmen
-  function SetAusgaben_Intern(AID_Benutzer: string; ATest: boolean; const AJSONObject: TJSONObject): TJSONObject;
+  function SetSerials_Intern(AID_Benutzer: string; const AJSONObject: TJSONObject): TJSONObject;
   // Einnnahmen ermitteln
   function GetEinnahmen_Intern(AID_Benutzer: string): TJSONObject;
   // Einnnahmen übernehmen
-  function SetEinnahmen_Intern(AID_Benutzer: string; ATest: boolean; const AJSONObject: TJSONObject): TJSONObject;
+  function SetEinnahmen_Intern(AID_Benutzer: string; const AJSONObject: TJSONObject): TJSONObject;
+  // Ausgaben ermitteln
+  function GetAusgaben_Intern(AID_Benutzer: string): TJSONObject;
+  // Ausgaben übernehmen
+  function SetAusgaben_Intern(AID_Benutzer: string; const AJSONObject: TJSONObject): TJSONObject;
+    // Ausgaben ermitteln
+  function GetVouchers_Intern(AID_Benutzer: string): TJSONObject;
+  // Ausgaben übernehmen
+  function SetVouchers_Intern(AID_Benutzer: string; const AJSONObject: TJSONObject): TJSONObject;
+    // Ausgaben ermitteln
+  function GetGiftCards_Intern(AID_Benutzer: string): TJSONObject;
+  // Ausgaben übernehmen
+  function SetGiftCards_Intern(AID_Benutzer: string; const AJSONObject: TJSONObject): TJSONObject;
   {$EndRegion Declare}
 var
   {$Region Var}
@@ -74,13 +95,55 @@ var
 implementation
 
 uses
-  System.Classes,
-  System.SysUtils,
-  System.StrUtils,
-  System.NetEncoding,
+  {$Region Uses}
+  PCM.Data,
+  PCM.Functions,
+  PCM.Main,
   PCM.Strings;
+  {$EndRegion Uses}
+////////////////////////////////////////////////////////////////////////////////
+// Hilfsfunktionen                                                            //
+////////////////////////////////////////////////////////////////////////////////
+{$Region Hilfsfunktionen}
+function BadRequest: TJSONObject;
+var
+  sUser: String;
+  sPass: String;
+begin
+  joResponseJSON := nil;
+  jaDetails := nil;
+  sUser := TDSSessionManager.GetThreadSession.GetData('Username');
+  sPass := TDSSessionManager.GetThreadSession.GetData('Password');
+  dm_PCM.qry_Work.sql.text:= 'SELECT ID,Benutzer, Passwort, RestApi FROM Benutzer WHERE Benutzer = :User';
+  dm_PCM.qry_Work.ParamByName('User').AsString := sUser;
+  dm_PCM.qry_Work.Open;
+  if not Assigned(joResponseJSON) then
+    joResponseJSON := TJSONObject.Create;
+  if dm_PCM.qry_Work.RecordCount > 0 then
+  begin
+    if (sPass <> dm_PCM.qry_Work.FieldByName('Passwort').AsString) then
+    begin
+      joResponseJSON.AddPair(TJSONPair.Create('HasError',TJSONBool.Create(true)));
+      joResponseJSON.AddPair(TJSONPair.Create('ErrorCode',TJSONNumber.Create(2)));
+      joResponseJSON.AddPair(TJSONPair.Create('Errormessage',TJSONString.Create('falsches Passwort')));
+    end;
+    if (dm_PCM.qry_Work.FieldByName('RestAPI').AsBoolean = false) then
+    begin
+      joResponseJSON.AddPair(TJSONPair.Create('HasError',TJSONBool.Create(true)));
+      joResponseJSON.AddPair(TJSONPair.Create('ErrorCode',TJSONNumber.Create(4)));
+      joResponseJSON.AddPair(TJSONPair.Create('Errormessage',TJSONString.Create('Benutzer nicht berechtigt')));
+    end;
+  end
+  else begin
+    joResponseJSON.AddPair(TJSONPair.Create('HasError',TJSONBool.Create(true)));
+    joResponseJSON.AddPair(TJSONPair.Create('ErrorCode',TJSONNumber.Create(2)));
+    joResponseJSON.AddPair(TJSONPair.Create('Errormessage',TJSONString.Create('Benutzer nicht gefunden')));
+  end;
 
-// ID aus Zusatztabellen ermitteln
+
+  WriteLog(PCM_Logname,rs_PCMAPPServer_Tokenpruefung,0);
+  Result := joResponseJSON;
+end;
 function GetIDFromTable(ATable,AValue: String) : Integer;
 begin
   dm_PCM.qry_Work.SQL.Text := 'SELECT ID From ' + ATable + ' Where Bezeichnung = :Bezeichnung' ;
@@ -103,7 +166,6 @@ begin
   end;
   dm_PCM.qry_Work.Close;
 end;
-// Prüfen ob Token gültig ist
 function CheckTokenGueltig(sToken: String): Boolean;
 begin
     dm_PCM.qry_Work.SQL.Text := 'SELECT Gueltig_Bis FROM Benutzer WHERE Token = :Token and Gueltig_Bis >= :Jetzt';
@@ -116,7 +178,6 @@ begin
       Result := False;
     dm_PCM.qry_work.Close;
 end;
-// Nullen hinzufügen
 function AddZeros(AValue: String; ACount: integer): string;
 begin
   if Length(AValue) > Acount then
@@ -131,7 +192,6 @@ begin
   end;
   result:= AValue;
 end;
-// Formatierung des Datums
 function FormatDateTimeToStr(ADate: TDateTime): String ;
 var
   wJahr,wMonat,wTag,wStunde,wMinute,wSekunde,wMSek: word;
@@ -141,10 +201,116 @@ begin
   Result:= IntToStr(wJahr) + '-' + AddZeros(IntToStr(wMonat), 2) + '-' + AddZeros(IntToStr(wTag), 2) + ' ' +
            AddZeros(IntToStr(wStunde), 2) + ':' + AddZeros(IntToStr(wMinute), 2) +':' + AddZeros(IntToStr(wSekunde), 2)
 end;
+function CheckUser: boolean;
+var
+  sUser, sPass: String;
+begin
+  Result:= false;
+  joResponseJSON:= nil;
+  joResponseJSONData:= nil;
+  jaDetails:= nil;
+  sUser := TDSSessionManager.GetThreadSession.GetData('Username');
+  sPass := TDSSessionManager.GetThreadSession.GetData('Password');
+  dm_PCM.qry_Work.sql.text:= 'SELECT ID,Benutzer, Passwort, RestApi FROM Benutzer WHERE Benutzer = :User';
+  dm_PCM.qry_Work.ParamByName('User').AsString := sUser;
+  dm_PCM.qry_Work.Open;
+  if dm_PCM.qry_Work.RecordCount > 0 then
+  begin
+    if (sPass = dm_PCM.qry_Work.FieldByName('Passwort').AsString) AND (dm_PCM.qry_Work.FieldByName('RestAPI').AsBoolean = True) then
+    begin
+      Result:= true;
+    end;
+  end;
+end;
+procedure UpdateFieldValues_String(AField, ATable, AValue: String; AID:Integer);Overload;
+var
+  qry_Update: TFDQuery;
+begin
+  qry_Update:= TFDQuery.Create(nil);
+  qry_Update.Connection:= dm_PCM.con_PCM;
+  qry_Update.SQL.Text:= 'Update ' + ATable + ' Set ' + AField + '=:AValue Where ID = :ID';
+  qry_Update.ParamByName('Avalue').AsString:= AValue;
+  qry_Update.ParamByName('ID').AsInteger:= AID;
+  qry_Update.ExecSQL;
+  FreeAndNil(qry_Update);
+end;
+procedure UpdateFieldValues_Ansistring(AField, ATable: String; AValue: Ansistring; AID:Integer);Overload
+var
+  qry_Update: TFDQuery;
+begin
+  qry_Update:= TFDQuery.Create(nil);
+  qry_Update.Connection:= dm_PCM.con_PCM;
+  qry_Update.SQL.Text:= 'Update ' + ATable + ' Set ' + AField + '=:AValue Where ID = :ID';
+  qry_Update.ParamByName('Avalue').asMemo:= AValue;
+  qry_Update.ParamByName('ID').AsInteger:= AID;
+  qry_Update.ExecSQL;
+  FreeAndNil(qry_Update);
+end;
+procedure UpdateFieldValues_TDateTime(AField, ATable: String; AValue: TDateTime; AID:Integer);Overload
+var
+  qry_Update: TFDQuery;
+begin
+  qry_Update:= TFDQuery.Create(nil);
+  qry_Update.Connection:= dm_PCM.con_PCM;
+  qry_Update.SQL.Text:= 'Update ' + ATable + ' Set ' + AField + '=:AValue Where ID = :ID';
+  qry_Update.ParamByName('Avalue').AsDateTime:= AValue;
+  qry_Update.ParamByName('ID').AsInteger:= AID;
+  qry_Update.ExecSQL;
+  FreeAndNil(qry_Update);
+end;
+procedure UpdateFieldValues_TDate(AField, ATable: String; AValue: TDate; AID:Integer);Overload
+var
+  qry_Update: TFDQuery;
+begin
+  qry_Update:= TFDQuery.Create(nil);
+  qry_Update.Connection:= dm_PCM.con_PCM;
+  qry_Update.SQL.Text:= 'Update ' + ATable + ' Set ' + AField + '=:AValue Where ID = :ID';
+  qry_Update.ParamByName('Avalue').AsDate:= AValue;
+  qry_Update.ParamByName('ID').AsInteger:= AID;
+  qry_Update.ExecSQL;
+  FreeAndNil(qry_Update);
+end;
+procedure UpdateFieldValues_Boolean(AField, ATable: String; AValue: Boolean; AID:Integer);Overload
+var
+  qry_Update: TFDQuery;
+begin
+  qry_Update:= TFDQuery.Create(nil);
+  qry_Update.Connection:= dm_PCM.con_PCM;
+  qry_Update.SQL.Text:= 'Update ' + ATable + ' Set ' + AField + '=:AValue Where ID = :ID';
+  qry_Update.ParamByName('Avalue').AsBoolean:= AValue;
+  qry_Update.ParamByName('ID').AsInteger:= AID;
+  qry_Update.ExecSQL;
+  FreeAndNil(qry_Update);
+end;
+procedure UpdateFieldValues_Integer(AField, ATable: String; AValue: Integer; AID:Integer);Overload
+var
+  qry_Update: TFDQuery;
+begin
+  qry_Update:= TFDQuery.Create(nil);
+  qry_Update.Connection:= dm_pcm.con_PCM;
+  qry_Update.SQL.Text:= 'Update ' + ATable + ' Set ' + AField + '=:AValue Where ID = :ID';
+  qry_Update.ParamByName('Avalue').AsInteger:= AValue;
+  qry_Update.ParamByName('ID').AsInteger:= AID;
+  qry_Update.ExecSQL;
+  FreeAndNil(qry_Update);
+end;
+procedure UpdateFieldValues_Float(AField, ATable: String; AValue: Double; AID:Integer);Overload
+var
+  qry_Update: TFDQuery;
+begin
+  qry_Update:= TFDQuery.Create(nil);
+  qry_Update.Connection:= dm_pcm.con_PCM;
+  qry_Update.SQL.Text:= 'Update ' + ATable + ' Set ' + AField + '=:AValue Where ID = :ID';
+  qry_Update.ParamByName('Avalue').AsFloat:= AValue;
+  qry_Update.ParamByName('ID').AsInteger:= AID;
+  qry_Update.ExecSQL;
+  FreeAndNil(qry_Update);
+end;
+{$EndRegion Hilfsfunktionen}
 ////////////////////////////////////////////////////////////////////////////////
 // WebAPI - PCM                                                               //
 ////////////////////////////////////////////////////////////////////////////////
-// Token ermitteln
+{$Region Webapi}
 function CreateToken_Intern: TJSONObject;
   function RandomString(strlength: integer): string;
   var
@@ -226,7 +392,6 @@ begin
     dm_PCM.qry_Work.Close;
   end;
 end;
-// Token erneuern
 function RefreshToken_Intern(const AJSONObject: TJSONObject): TJSONObject;
 var
   sToken: string;
@@ -268,7 +433,6 @@ begin
     dm_PCM.qry_Work.Close;
   end;
 end;
-// Token löschen
 function DeleteToken_Intern(const sToken: String;iProg: Integer): TJSONObject;
 begin
   joResponseJSON:= nil;
@@ -307,7 +471,6 @@ begin
     dm_PCM.qry_Work.Close;
   end;
 end;
-// Backup erzeugen
 function CreateBackup_Intern(const sToken, sPath: String): TJSONObject;
 begin
   if not Assigned(joResponseJSON) then
@@ -324,7 +487,6 @@ begin
   end;
   result:= joResponseJSON;
 end;
-// Kalenderconfig
 function GetKalenderConfig_Intern(const AJSONObject: TJSONObject): TJSONObject;
 var
   qWork: TFDQuery;
@@ -377,9 +539,13 @@ begin
     qWork.Free;
   end;
 end;
+{$EndRegion Webapi}
 ////////////////////////////////////////////////////////////////////////////////
 // APP-API - PCM                                                              //
 ////////////////////////////////////////////////////////////////////////////////
+{$Region APPapi}
+// Server und Login
+{$Region Server_Login}
 //Checkserver
 function Checkserver_intern: TJSONObject;
 begin
@@ -392,7 +558,7 @@ begin
   Result := joResponseJSON;
 end;
 // Login ermitteln
-function GetLogin_Intern: TJSONObject;
+function CheckLogin_Intern: TJSONObject;
 var
   sUser, sPass: String;
 begin
@@ -404,29 +570,51 @@ begin
   if not Assigned(joResponseJSON) then
     joResponseJSON := TJSONObject.Create;
   try
-    dm_PCM.qry_Work.SQL.Text := 'SELECT ID, Benutzer, Passwort, Startseite FROM Benutzer WHERE Benutzer =:Username AND Passwort=:Password';
-    dm_PCM.qry_Work.ParamByName('Username').AsString := sUser;
-    dm_PCM.qry_Work.ParamByName('Password').AsString := sPass;
+    WriteLog(PCM_Logname,rs_PCMAPPServer_BenutzerausPCMpruefen,0);
+    dm_PCM.qry_Work.sql.text:= 'SELECT ID,Benutzer, Passwort, RestApi FROM Benutzer WHERE Benutzer = :User';
+    dm_PCM.qry_Work.ParamByName('User').AsString := sUser;
     dm_PCM.qry_Work.Open;
     if dm_PCM.qry_Work.RecordCount > 0 then
     begin
+      if not Assigned(jaDetails) then
+        jaDetails := TJSONArray.Create;
+      if not Assigned(joResponseJSONData) then
+        joResponseJSONData := TJSONObject.Create;
+      if (sPass = dm_PCM.qry_Work.FieldByName('Passwort').AsString) AND (dm_PCM.qry_Work.FieldByName('RestAPI').AsBoolean = True) then
+      begin
+        iCode:= 200;
+        sMessage:= 'OK';
+        joResponseJSON.AddPair(TJSONPair.Create('HasError',TJSONBool.Create(false)));
+        joResponseJSON.AddPair(TJSONPair.Create('ErrorCode',TJSONNumber.Create(0)));
+        joResponseJSON.AddPair(TJSONPair.Create('Errormessage',TJSONString.Create('')));
+        joResponseJSONData.AddPair(TJSONPair.Create('Allowed', TJSONBool.Create(True)));
+        joResponseJSONData.AddPair(TJSONPair.Create('ID_User', TJSONNumber.Create(dm_PCM.qry_Work.FieldByName('ID').asInteger)));
+        joResponseJSON.AddPair(TJSONPair.Create('User', sUser));
+        joResponseJSON.AddPair(TJSONPair.Create('Password', sPass));
+        jaDetails.Add(joResponseJSONData);
+        joResponseJSONData:= nil;
+      end else
+      begin
+        iCode:= 401;
+        sMessage:= 'Unauthorized';
+        joResponseJSON.AddPair(TJSONPair.Create('HasError',TJSONBool.Create(true)));
+        joResponseJSON.AddPair(TJSONPair.Create('ErrorCode',TJSONNumber.Create(1)));
+        joResponseJSON.AddPair(TJSONPair.Create('Errormessage',TJSONString.Create('Benutzer ' + sUSer + ' nicht berechtigt')));
+        joResponseJSONData.AddPair(TJSONPair.Create('Allowed', TJSONBool.Create(False)));
+        joResponseJSONData.AddPair(TJSONPair.Create('ID_User', TJSONNumber.Create(dm_PCM.qry_Work.FieldByName('ID').asInteger)));
+        joResponseJSON.AddPair(TJSONPair.Create('User', sUser));
+        joResponseJSON.AddPair(TJSONPair.Create('Password', sPass));
+        jaDetails.Add(joResponseJSONData);
+        joResponseJSONData:= nil;
+      end;
+      joResponseJSON.AddPair(TJSONPair.Create('Login', jaDetails));
+    end
+    else begin
       iCode:= 200;
       sMessage:= 'OK';
-      joResponseJSON.AddPair(TJSONPair.Create('HasError',TJSONBool.Create(false)));
-      joResponseJSON.AddPair(TJSONPair.Create('ErrorCode',TJSONNumber.Create(0)));
-      joResponseJSON.AddPair(TJSONPair.Create('Errormessage',TJSONString.Create('')));
-      joResponseJSON.AddPair(TJSONPair.Create('ID_User', dm_PCM.qry_work.FieldByName('ID').asInteger));
-      joResponseJSON.AddPair(TJSONPair.Create('User', sUser));
-      joResponseJSON.AddPair(TJSONPair.Create('Password', sPass));
-      joResponseJSON.AddPair(TJSONPair.Create('Startpage', dm_PCM.qry_work.FieldByName('Startseite').asInteger));
-    end
-    else
-    begin
-      iCode:= 401;
-      sMessage:= 'Unauthorized';
       joResponseJSON.AddPair(TJSONPair.Create('HasError',TJSONBool.Create(true)));
       joResponseJSON.AddPair(TJSONPair.Create('ErrorCode',TJSONNumber.Create(1)));
-      joResponseJSON.AddPair(TJSONPair.Create('Errormessage',TJSONString.Create('Benutzer ' + sUSer + ' nicht gefunden oder falsches Passwort')));
+      joResponseJSON.AddPair(TJSONPair.Create('Errormessage',TJSONString.Create('Keine Datensätze vorhanden')));
     end;
   except
     on e:exception do
@@ -441,6 +629,46 @@ begin
   dm_PCM.qry_Work.Close;
   Result := joResponseJSON;
 end;
+// Set Token
+function SetDeviceID_Intern(const AJSONObject: TJSONObject): TJSONObject;
+var
+  iID_Benutzer: Integer;
+  sToken: string;
+begin
+  iZaehler:= 0;
+  joResponseJSON := nil;
+  jaDetails := nil;
+//  jSonValue := nil;
+  jaDetails :=  AJSONObject.GetValue<TJSONArray>('Device');
+  for var JSonValue in jaDetails do
+  begin
+    JSonValue.TryGetValue<string>('Token',sToken);
+    JSonValue.TryGetValue<integer>('ID_Benutzer',iID_Benutzer);
+    dm_PCM.qry_Work.SQL.Text:=  'SELECT COUNT(*) as Anzahl FROM benutzer_token WHERE DeviceToken = :DeviceToken AND ID_Benutzer = :ID_Benutzer';
+    dm_PCM.qry_Work.ParamByName('ID_Benutzer').asInteger := iID_Benutzer;
+    dm_PCM.qry_Work.ParamByName('DeviceToken').asString := sToken;
+    dm_PCM.qry_Work.Open;
+    iAnzahl:= dm_PCM.qry_Work.FieldByName('Anzahl').asInteger;
+    dm_PCM.qry_Work.Close;
+    if iAnzahl = 0 then
+    begin
+      dm_PCM.qry_Work.SQL.Text:=  'INSERT INTO benutzer_token (ID_Benutzer,DeviceToken) Values (:ID_Benutzer,:DeviceToken)';
+        dm_PCM.qry_Work.ParamByName('DeviceToken').AsString:=sToken;
+        dm_PCM.qry_Work.ParamByName('ID_Benutzer').asInteger:=iID_Benutzer;
+        dm_PCM.qry_Work.ExecSQL;
+    end;
+  end;
+  if not Assigned(joResponseJSON) then
+    joResponseJSON := TJSONObject.Create;
+  joResponseJSON.AddPair(TJSONPair.Create('HasError',TJSONBool.Create(false)));
+  joResponseJSON.AddPair(TJSONPair.Create('ErrorCode',TJSONNumber.Create(0)));
+  joResponseJSON.AddPair(TJSONPair.Create('Errormessage',TJSONString.Create('')));
+  WriteLog(PCM_Logname,rs_PCMAPPServer_Tokenpruefung,0);
+  Result := joResponseJSON;
+end;
+{$EndRegion Server_Login}
+// Kontakte
+{$Region Kontakte}
 // Kontakte ermitteln
 function GetKontakte_Intern(AID_Benutzer: string): TJSONObject;
 begin
@@ -520,8 +748,9 @@ begin
   Result := joResponseJSON;
 end;
 // Kontakte übernehmen
-function SetKontakte_Intern(AID_Benutzer: string; ATest: boolean; const AJSONObject: TJSONObject): TJSONObject;
+function SetKontakte_Intern(AID_Benutzer: string; const AJSONObject: TJSONObject): TJSONObject;
 var
+  iSyncID: integer;
   iID_Anrede, iID_Geschlecht, iID_Familienstand, iID_Staatsangehoerigkeit, iID_Konfession: integer;
   iID: integer;
   sAnrede: string;
@@ -533,6 +762,7 @@ var
   sTelefon_pri: string;
   sHandy_pri: string;
   sMail_pri: string;
+  sWeb_pri: string;
   sGeburtsdatum: string;
   sGeschlecht: string;
   sFamilienstand: string;
@@ -545,6 +775,7 @@ var
   sTelefon_ges:  string;
   sHandy_ges: string;
   sMail_ges: string;
+  sWeb_ges: string;
   iID_Kontakt: integer;
   sBild: string;
   bDeleted: boolean;
@@ -566,6 +797,7 @@ begin
     JSonValue.TryGetValue<string>('Phone_private',sTelefon_pri);
     JSonValue.TryGetValue<string>('Mobile_private',sHandy_pri);
     JSonValue.TryGetValue<string>('Mail_private',sMail_pri);
+    JSonValue.TryGetValue<string>('Web_private',sWeb_pri);
     JSonValue.TryGetValue<string>('Birthday',sGeburtsdatum);
     JSonValue.TryGetValue<string>('Gender',sGeschlecht);
     JSonValue.TryGetValue<string>('Maritalstatus',sFamilienstand);
@@ -578,28 +810,24 @@ begin
     JSonValue.TryGetValue<string>('Phone_business',sTelefon_ges);
     JSonValue.TryGetValue<string>('Mobile_business',sHandy_ges);
     JSonValue.TryGetValue<string>('Mail_business',sMail_ges);
+    JSonValue.TryGetValue<string>('Web_business',sWeb_ges);
     JSonValue.TryGetValue<integer>('ID_Contact', iID_Kontakt);
     JSonValue.TryGetValue<string>('Image',sBild);
     JSonValue.TryGetValue<boolean>('Deleted',bDeleted);
     if bDeleted then
     begin
-      dm_PCM.qry_Work.SQL.Text :=  'DELETE FROM manager_kontakte WHERE ID_Benutzer = :ID_Benutzer AND Vorname = :Vorname AND Nachname = :Nachname';
-      dm_PCM.qry_Work.ParamByName('Vorname').asString := sVorname;
-      dm_PCM.qry_Work.ParamByName('Nachname').asString := sNachname;
+      dm_PCM.qry_Work.SQL.Text :=  'DELETE FROM manager_kontakte WHERE ID = :ID and ID_Benutzer = :ID_Benutzer';
+      dm_PCM.qry_Work.ParamByName('ID').asInteger := iID_Kontakt;
       dm_PCM.qry_Work.ParamByName('ID_Benutzer').asInteger:= StrToInt(AID_Benutzer);
-      if not ATest then
-        dm_PCM.qry_Work.ExecSQL;
+      dm_PCM.qry_Work.ExecSQL;
     end
     else
     begin
       // Check neue Datensatz
-      dm_PCM.qry_Work.SQL.Text:=  'SELECT COUNT(*) as Anzahl FROM manager_kontakte WHERE ID_Benutzer = :ID_Benutzer AND Vorname = :Vorname AND Nachname = :Nachname';
-      dm_PCM.qry_Work.ParamByName('Vorname').asString := sVorname;
-      dm_PCM.qry_Work.ParamByName('Nachname').asString := sNachname;
+      dm_PCM.qry_Work.SQL.Text:=  'SELECT ID FROM manager_kontakte WHERE ID = :ID and ID_Benutzer = :ID_Benutzer';
+      dm_PCM.qry_Work.ParamByName('ID').asInteger := iID_Kontakt;
       dm_PCM.qry_Work.ParamByName('ID_Benutzer').asInteger:= StrToInt(AID_Benutzer);
       dm_PCM.qry_Work.Open;
-      iAnzahl:= dm_PCM.qry_Work.FieldByName('Anzahl').asInteger;
-      dm_PCM.qry_Work.Close;
       // ID's ermitteln
       iID_Anrede:= -1;
       iID_Geschlecht:= -1;
@@ -632,21 +860,21 @@ begin
         iID_Konfession:= GetIDFromTable('manager_Konfession',sKonfession);
       end;
       // Prüfen ob Kontakt schon vorhanden
-      if iAnzahl = 0 then
+      if dm_PCM.qry_Work.RecordCount = 0 then
       begin
-        if sGeburtsdatum ='' then
+        if StrToDate(sGeburtsdatum) = StrToDate('30.12.1899')then
         begin
           dm_PCM.qry_Work.SQL.Text:=  'INSERT INTO manager_kontakte (ID_Anrede,Vorname,Nachname,Strasse_Privat,PLZ_Privat,Ort_Privat,Telefon_Privat,Handy_privat,E_Mail_Privat,ID_Geschlecht,' +
-                                                'ID_Familienstand,ID_Staatsangehoerigkeit,ID_Konfession,Firma,Strasse_Ges,PLZ_Ges,Ort_Ges,Telefon_Ges,Handy_Ges,E_Mail_Ges,ID_Benutzer' +
-                                                ') Values (:ID_Anrede,:Vorname,:Nachname,:Strasse_Privat,:PLZ_Privat,:Ort_Privat,:Telefon_Privat,:Handy_privat,:E_Mail_Privat,:ID_Geschlecht,' +
-                                                ':ID_Familienstand,:ID_Staatsangehoerigkeit,:ID_Konfession,:Firma,:Strasse_Ges,:PLZ_Ges,:Ort_Ges,:Telefon_Ges,:Handy_Ges,:E_Mail_Ges,:ID_Benutzer)';
+                                      'ID_Familienstand,ID_Staatsangehoerigkeit,ID_Konfession,Firma,Strasse_Ges,PLZ_Ges,Ort_Ges,Telefon_Ges,Handy_Ges,E_Mail_Ges,ID_Benutzer' +
+                                      ') Values (:ID_Anrede,:Vorname,:Nachname,:Strasse_Privat,:PLZ_Privat,:Ort_Privat,:Telefon_Privat,:Handy_privat,:E_Mail_Privat,:ID_Geschlecht,' +
+                                      ':ID_Familienstand,:ID_Staatsangehoerigkeit,:ID_Konfession,:Firma,:Strasse_Ges,:PLZ_Ges,:Ort_Ges,:Telefon_Ges,:Handy_Ges,:E_Mail_Ges,:ID_Benutzer)';
         end
         else begin
 
           dm_PCM.qry_Work.SQL.Text:=  'INSERT INTO manager_kontakte (ID_Anrede,Vorname,Nachname,Strasse_Privat,PLZ_Privat,Ort_Privat,Telefon_Privat,Handy_privat,E_Mail_Privat,Geburtsdatum,ID_Geschlecht,' +
-                                                'ID_Familienstand,ID_Staatsangehoerigkeit,ID_Konfession,Firma,Strasse_Ges,PLZ_Ges,Ort_Ges,Telefon_Ges,Handy_Ges,E_Mail_Ges,ID_Benutzer' +
-                                                ') Values (:ID_Anrede,:Vorname,:Nachname,:Strasse_Privat,:PLZ_Privat,:Ort_Privat,:Telefon_Privat,:Handy_privat,:E_Mail_Privat,:Geburtsdatum,:ID_Geschlecht,' +
-                                                ':ID_Familienstand,:ID_Staatsangehoerigkeit,:ID_Konfession,:Firma,:Strasse_Ges,:PLZ_Ges,:Ort_Ges,:Telefon_Ges,:Handy_Ges,:E_Mail_Ges,:ID_Benutzer)';
+                                      'ID_Familienstand,ID_Staatsangehoerigkeit,ID_Konfession,Firma,Strasse_Ges,PLZ_Ges,Ort_Ges,Telefon_Ges,Handy_Ges,E_Mail_Ges,ID_Benutzer' +
+                                      ') Values (:ID_Anrede,:Vorname,:Nachname,:Strasse_Privat,:PLZ_Privat,:Ort_Privat,:Telefon_Privat,:Handy_privat,:E_Mail_Privat,:Geburtsdatum,:ID_Geschlecht,' +
+                                      ':ID_Familienstand,:ID_Staatsangehoerigkeit,:ID_Konfession,:Firma,:Strasse_Ges,:PLZ_Ges,:Ort_Ges,:Telefon_Ges,:Handy_Ges,:E_Mail_Ges,:ID_Benutzer)';
           dm_PCM.qry_Work.ParamByName('Geburtsdatum').asDate:= StrToDate(sGeburtsdatum);
         end;
         dm_PCM.qry_Work.ParamByName('ID_Anrede').asInteger:= iID_Anrede;
@@ -670,49 +898,31 @@ begin
         dm_PCM.qry_Work.ParamByName('Handy_Ges').asString:=sHandy_ges;
         dm_PCM.qry_Work.ParamByName('E_Mail_Ges').asString:=smail_ges;
         dm_PCM.qry_Work.ParamByName('ID_Benutzer').asInteger:= StrToInt(AID_Benutzer);
-        if not ATest then
-          dm_PCM.qry_Work.ExecSQL;
+        dm_PCM.qry_Work.ExecSQL;
       end
-      else
-      begin
-        if sGeburtsdatum = '' then
-        begin
-					dm_PCM.qry_Work.SQL.Text:=  'Update manager_kontakte SET ID_Anrede= :ID_Anrede,Strasse_Privat= :Strasse_Privat,PLZ_Privat= :PLZ_Privat,Ort_Privat= :Ort_Privat,' +
-																								'Telefon_Privat= :Telefon_Privat,Handy_privat= :Handy_privat,E_Mail_Privat= :E_Mail_Privat,ID_Geschlecht= :ID_Geschlecht,ID_Familienstand= :ID_Familienstand,' +
-																								'ID_Staatsangehoerigkeit= :ID_Staatsangehoerigkeit,ID_Konfession= :ID_Konfession,Firma= :Firma,Strasse_Ges= :Strasse_Ges,PLZ_Ges= :PLZ_Ges,Ort_Ges= :Ort_Ges,' +
-																								'Telefon_Ges= :Telefon_Ges,Handy_Ges= :Handy_Ges,E_Mail_Ges= :E_Mail_Ges '  +
-                                                'Where Nachname = :Nachname and Vorname = :Vorname';
-        end
-        else begin
-          dm_PCM.qry_Work.SQL.Text:=  'Update manager_kontakte SET ID_Anrede= :ID_Anrede,Geburtsdatum= :Geburtsdatum,Strasse_Privat= :Strasse_Privat,PLZ_Privat= :PLZ_Privat,Ort_Privat= :Ort_Privat,' +
-																								'Telefon_Privat= :Telefon_Privat,Handy_privat= :Handy_privat,E_Mail_Privat= :E_Mail_Privat,ID_Geschlecht= :ID_Geschlecht,ID_Familienstand= :ID_Familienstand,' +
-																								'ID_Staatsangehoerigkeit= :ID_Staatsangehoerigkeit,ID_Konfession= :ID_Konfession,Firma= :Firma,Strasse_Ges= :Strasse_Ges,PLZ_Ges= :PLZ_Ges,Ort_Ges= :Ort_Ges,' +
-																								'Telefon_Ges= :Telefon_Ges,Handy_Ges= :Handy_Ges,E_Mail_Ges = :E_Mail_Ges ' +
-                                                'Where Nachname = :Nachname and Vorname = :Vorname';
-          dm_PCM.qry_Work.ParamByName('Geburtsdatum').asDate:= StrToDate(sGeburtsdatum);
-        end;
-        dm_PCM.qry_Work.ParamByName('ID_Anrede').asInteger:= iID_Anrede;
-        dm_PCM.qry_Work.ParamByName('Vorname').asString := sVorname;
-        dm_PCM.qry_Work.ParamByName('Nachname').asString := sNachname;
-        dm_PCM.qry_Work.ParamByName('Strasse_Privat').asString:= sStrasse_pri;
-        dm_PCM.qry_Work.ParamByName('PLZ_Privat').asString:=sPlz_pri;
-        dm_PCM.qry_Work.ParamByName('Ort_Privat').asString:=sOrt_pri;
-        dm_PCM.qry_Work.ParamByName('Telefon_Privat').asString:= sTelefon_pri;
-        dm_PCM.qry_Work.ParamByName('Handy_privat').asString:=sHandy_pri;
-        dm_PCM.qry_Work.ParamByName('E_Mail_Privat').asString:= smail_pri;
-        dm_PCM.qry_Work.ParamByName('ID_Geschlecht').asInteger:=iID_Geschlecht;
-        dm_PCM.qry_Work.ParamByName('ID_Familienstand').asInteger:= iID_Familienstand;
-        dm_PCM.qry_Work.ParamByName('ID_Staatsangehoerigkeit').asInteger:= iID_Staatsangehoerigkeit;
-        dm_PCM.qry_Work.ParamByName('ID_Konfession').asInteger:= iID_Konfession;
-        dm_PCM.qry_Work.ParamByName('Firma').asString:= sFirma;
-        dm_PCM.qry_Work.ParamByName('Strasse_Ges').asString:=sStrasse_ges;
-        dm_PCM.qry_Work.ParamByName('PLZ_Ges').asString:= sPLZ_ges;
-        dm_PCM.qry_Work.ParamByName('Ort_Ges').asString:=sOrt_ges;
-        dm_PCM.qry_Work.ParamByName('Telefon_Ges').asString:=sTelefon_ges;
-        dm_PCM.qry_Work.ParamByName('Handy_Ges').asString:=sHandy_ges;
-        dm_PCM.qry_Work.ParamByName('E_Mail_Ges').asString:=smail_ges;
-        if not ATest then
-          dm_PCM.qry_Work.ExecSQL;
+      else begin
+        iSyncID:=dm_PCM.qry_Work.FieldByName('ID').AsInteger;
+        if (StrToDate(sGeburtsdatum) <> StrToDate('30.12.1899')) and (sGeburtsdatum <> '')  then UpdateFieldValues_TDate('Geburtsdatum','manager_Kontakte',StrToDate(sGeburtsdatum),iSyncID);
+        if sVorname <> '' then	UpdateFieldValues_String('Vorname','manager_Kontakte',sVorname,iSyncID);
+        if sNachname <> '' then UpdateFieldValues_String('Nachname','manager_Kontakte',sNachname,iSyncID);
+        if sStrasse_pri <> '' then	UpdateFieldValues_String('Strasse_Privat','manager_Kontakte',sStrasse_pri,iSyncID);
+        if sPlz_pri <> '' then UpdateFieldValues_String('PLZ_Privat','manager_Kontakte',sPlz_pri,iSyncID);
+        if sOrt_pri <> '' then UpdateFieldValues_String('Ort_Privat','manager_Kontakte',sOrt_pri,iSyncID);
+        if sTelefon_pri <> '' then UpdateFieldValues_String('Telefon_Privat','manager_Kontakte',sTelefon_pri,iSyncID);
+        if sHandy_pri <> '' then UpdateFieldValues_String('Handy_privat','manager_Kontakte',sHandy_pri,iSyncID);
+        if smail_pri <> '' then UpdateFieldValues_String('E_Mail_Privat','manager_Kontakte',smail_pri,iSyncID);
+        if sGeschlecht <> '' then UpdateFieldValues_Integer('ID_Geschlecht','manager_Kontakte',iID_Geschlecht,iSyncID);
+        if sFamilienstand <> '' then	UpdateFieldValues_Integer('ID_Familienstand','manager_Kontakte',iID_Familienstand,iSyncID);
+        if sStaatsangehoerigkeit <> '' then UpdateFieldValues_Integer('ID_Staatsangehoerigkeit','manager_Kontakte',iID_Staatsangehoerigkeit,iSyncID);
+        if sKonfession <> '' then UpdateFieldValues_Integer('ID_Konfession','manager_Kontakte',iID_Konfession,iSyncID);
+        if sAnrede <> '' then UpdateFieldValues_Integer('ID_Anrede','manager_Kontakte',iID_Anrede,iSyncID);
+        if sFirma <> '' then UpdateFieldValues_String('Firma','manager_Kontakte',sFirma,iSyncID);
+        if sStrasse_ges <> '' then UpdateFieldValues_String('Strasse_Ges','manager_Kontakte',sStrasse_ges,iSyncID);
+        if sPLZ_ges <> '' then	UpdateFieldValues_String('PLZ_Ges','manager_Kontakte',sPLZ_ges,iSyncID);
+        if sOrt_ges <> '' then	UpdateFieldValues_String('Ort_Ges','manager_Kontakte',sOrt_ges,iSyncID);
+        if sTelefon_ges <> '' then UpdateFieldValues_String('Telefon_Ges','manager_Kontakte',sTelefon_ges,iSyncID);
+        if sHandy_ges <> '' then UpdateFieldValues_String('Handy_Ges','manager_Kontakte',sHandy_ges,iSyncID);
+        if smail_ges <> '' then UpdateFieldValues_String('E_Mail_Ges','manager_Kontakte',smail_ges,iSyncID);
       end;
     end;
     iZaehler:= iZaehler + 1;
@@ -725,6 +935,9 @@ begin
   Result := joResponseJSON;
   WriteLog(PCM_Logname,rs_PCMAPPServer_Kontaktepruefung + IntToStr(iZaehler),0);
 end;
+{$EndRegion Kontakte}
+// Kalender
+{$Region Kalender}
 // Kalender ermitteln
 function GetKalender_Intern(AID_Benutzer: string): TJSONObject;
 begin
@@ -788,7 +1001,22 @@ begin
   Result := joResponseJSON;
 end;
 // Kalender übernehmen
-function SetKalender_Intern(AID_Benutzer: string; ATest: boolean; const AJSONObject: TJSONObject): TJSONObject;
+function SetKalender_Intern(AID_Benutzer: string; const AJSONObject: TJSONObject): TJSONObject;
+  function FormatDateTimeToStr(ADate: TDateTime): String ;
+  var
+    wJahr,
+    wMonat,
+    wTag,
+    wStunde,
+    wMinute,
+    wSekunde,
+    wMSek: word;
+  begin
+    Result := '';
+    DecodeDateTime(ADate,wJahr,wMonat,wTag,wStunde,wMinute,wSekunde,wMSek);
+    Result:= IntToStr(wJahr) + '-' + AddZeros(IntToStr(wMonat), 2) + '-' + AddZeros(IntToStr(wTag), 2) + ' ' +
+             AddZeros(IntToStr(wStunde), 2) + ':' + AddZeros(IntToStr(wMinute), 2) +':' + AddZeros(IntToStr(wSekunde), 2)
+  end;
 var
   iID: integer;
   sCaption: String;
@@ -805,17 +1033,20 @@ var
   iID_Kalender: integer;
   bDeleted: boolean;
   iLabelColor,iFontColor: integer;
+  sStart: String;
+  sFinish: String;
+  sReccurrencetext: String;
+  iSyncID: integer;
 begin
   joResponseJSON := nil;
   jaDetails := nil;
-//  jSonValue := nil;
   iZaehler:= 0;
   jaDetails :=  AJSONObject.GetValue<TJSONArray>('Calendar');
   for var JSonValue in jaDetails do
   begin
     JSonValue.TryGetValue<integer>('ID',iID);
-    JSonValue.TryGetValue<string>('Caption',sCaption);
     JSonValue.TryGetValue<integer>('EventType',iEventType);
+    JSonValue.TryGetValue<string>('Caption',sCaption);
     JSonValue.TryGetValue<string>('Location',sLocation);
     JSonValue.TryGetValue<string>('Message',sMessage);
     JSonValue.TryGetValue<string>('Start',sStartDate);
@@ -826,40 +1057,38 @@ begin
     JSonValue.TryGetValue<integer>('Reminderbeforestart',iReminderMinutesBeforeStart);
     JSonValue.TryGetValue<string>('Calendername',sKalendername);
     JSonValue.TryGetValue<integer>('ID_Calender,',iID_Kalender);
+    JSonValue.TryGetValue<string>('Reccurrencetext',sReccurrencetext);
     JSonValue.TryGetValue<boolean>('Deleted',bDeleted);
     // Kalender löschen
     if bDeleted then
     begin
       dm_PCM.qry_Work.SQL.Text :=  'DELETE FROM manager_kalender WHERE ID = :ID';
       dm_PCM.qry_Work.ParamByName('ID').AsInteger := iID_Kalender;
-      if not ATest then
-        dm_PCM.qry_Work.ExecSQL;
+      dm_PCM.qry_Work.ExecSQL;
     end
     else
     begin
-//      // Check neue Datensatz
-      dm_PCM.qry_Work.SQL.Text:=  'SELECT COUNT(*) as Anzahl FROM manager_kalender WHERE ID = :ID_Kalender';
+      // Check neue Datensatz
+      dm_PCM.qry_Work.SQL.Text:=  'SELECT ID,LabelColor,FontColor FROM manager_kalender WHERE ID = :ID_Kalender';
       dm_PCM.qry_Work.ParamByName('ID_Kalender').asInteger := iID_Kalender;
       dm_PCM.qry_Work.Open;
-      iAnzahl:= dm_PCM.qry_Work.FieldByName('Anzahl').asInteger;
-      dm_PCM.qry_Work.Close;
-      if iAnzahl = 0 then
+      if dm_PCM.qry_Work.RecordCount = 0 then
       begin
-        dm_PCM.qry_Work.SQL.Text:=  'SELECT COUNT(*) as Anzahl FROM manager_kalender WHERE ' +
+        sStart:= FormatDateTimeToStr(StrToDateTime(sStartDate));
+        sFinish:=FormatDateTimeToStr(StrToDateTime(sFinishDate));
+        dm_PCM.qry_Work.SQL.Text:=  'SELECT ID,LabelColor,FontColor  FROM manager_kalender WHERE ' +
                                     'Caption = :Caption and START = :Start and Finish = :Finish';
         dm_PCM.qry_Work.ParamByName('Caption').asString := sCaption;
         dm_PCM.qry_Work.ParamByName('Start').asDateTime := StrToDateTime(sStartDate);
         dm_PCM.qry_Work.ParamByName('Finish').asDateTime := StrToDateTime(sFinishDate);
         dm_PCM.qry_Work.Open;
-        iAnzahl:= dm_PCM.qry_Work.FieldByName('Anzahl').asInteger;
-        dm_PCM.qry_Work.Close;
-        if iAnzahl = 0 then
+        if dm_PCM.qry_Work.RecordCount = 0 then
         begin
           dm_PCM.qry_Work.SQL.Text:= 'INSERT INTO manager_kalender(Caption,EventType,Location,Message,' +
-                                               'START,Finish,CompleteDay,Reminder,ReminderDate,ReminderMinutesBeforeStart,' +
-                                               'ID_Benutzer,Kalendername,LabelColor,FontColor,ID_KalenderAPP) VALUES (:Caption,:EventType,' +
-                                               ':Location,:Message,:START,:Finish,:CompleteDay,:Reminder,:ReminderDate,' +
-                                               ':ReminderMinutesBeforeStart,:ID_Benutzer,:Kalendername,:LabelColor,:FontColor,:ID_KalenderAPP)';
+                                     'START,Finish,CompleteDay,Reminder,ReminderDate,ReminderMinutesBeforeStart,' +
+                                     'ID_Benutzer,Kalendername,LabelColor,FontColor,ID_KalenderAPP) VALUES (:Caption,:EventType,' +
+                                     ':Location,:Message,:START,:Finish,:CompleteDay,:Reminder,:ReminderDate,' +
+                                     ':ReminderMinutesBeforeStart,:ID_Benutzer,:Kalendername,:LabelColor,:FontColor,:ID_KalenderAPP)';
           dm_PCM.qry_Work.ParamByName('Caption').AsString:= sCaption;
           dm_PCM.qry_Work.ParamByName('EventType').AsInteger:= iEventType;
           dm_PCM.qry_Work.ParamByName('Location').AsString:= sLocation;
@@ -883,39 +1112,119 @@ begin
           dm_PCM.qry_Work.ParamByName('Kalendername').AsString:= sKalendername;
           dm_PCM.qry_Work.ParamByName('LabelColor').AsInteger:= 13083265;
           dm_PCM.qry_Work.ParamByName('FontColor').AsInteger:= 0;
-          if not ATest then
-            dm_PCM.qry_Work.ExecSQL;
+          dm_PCM.qry_Work.ExecSQL;
+        end
+        else begin
+          iSyncID:= dm_PCM.qry_Work.FieldByName('ID').asInteger;
+          iFontColor:= dm_PCM.qry_Work.FieldByName('FontColor').AsInteger;
+          iLabelColor:= dm_PCM.qry_Work.FieldByName('LabelColor').AsInteger;
+          if sCaption <> '' then UpdateFieldValues_String('Caption','manager_Kalender',sCaption,iSyncID);
+          if iEventType <> -1 then UpdateFieldValues_Integer('EventType','manager_Kalender',iEventType,iSyncID);
+          if sLocation <> '' then UpdateFieldValues_String('Location','manager_Kalender',sLocation,iSyncID);
+          if sMessage <> ''  then UpdateFieldValues_String('Message','manager_Kalender',sMessage,iSyncID);
+          if sStartDate <> ''  then UpdateFieldValues_TDateTime('Start','manager_Kalender',StrToDateTime(sStartDate),iSyncID);
+          if sFinishDate <> ''  then UpdateFieldValues_TDateTime('Finish','manager_Kalender',StrToDateTime(sFinishDate),iSyncID);
+          if iID <> -1 then UpdateFieldValues_Integer('ID_KalenderApp','manager_Kalender',iID,iSyncID);
+          if bCompleteDay then UpdateFieldValues_String('CompleteDay','manager_Kalender','True',iSyncID) else UpdateFieldValues_String('CompleteDay','manager_Kalender','False',iSyncID);
+          if bReminder then UpdateFieldValues_String('Reminder','manager_Kalender','True',iSyncID) else UpdateFieldValues_String('Reminder','manager_Kalender','False',iSyncID);
+          if iReminderMinutesBeforeStart <> 0 then UpdateFieldValues_integer('ReminderMinutesBeforeStart','manager_Kalender',iReminderMinutesBeforeStart,iSyncID);
+          if sReminderDate <> ''  then UpdateFieldValues_TDateTime('ReminderDate','manager_Kalender',StrToDateTime(sReminderDate),iSyncID);
+          if sKalendername <> '' then UpdateFieldValues_String('Kalendername','manager_Kalender',sKalendername,iSyncID);
+          UpdateFieldValues_Integer('Typ','manager_Kalender',2,iSyncID);
+          case AnsiIndexStr(sCaption, ['Biomüll', 'Restmüll','Papier','Gelber Sack','Giftmobil']) of
+            // BioMüll
+            0:
+            begin
+              iFontColor:= clWhite;
+              iLabelColor := 944838;
+            end;
+            // RestMüll
+            1:
+            begin
+              iFontColor:= clWhite;
+              iLabelColor := 5658199;
+            end;
+            // Papier
+            2:
+            begin
+              iFontColor:= clWhite;
+              iLabelColor := 13214474;
+            end;
+            // Gelber Sack
+            3:
+            begin
+              iFontColor:= clBlack;
+              iLabelColor := 56831;
+            end;
+            // Giftmobil
+            4:
+            begin
+              iFontColor:= clWhite;
+              iLabelColor := 7679146;
+            end;
+          end;
+          if Pos('Geburtstag',sCaption) > 0 then
+          begin
+            iFontColor:= 0;
+            iLabelColor := 8421376;
+          end;
+          if (Pos('ganzer Krankheitstag',sCaption) > 0) or (Pos('halber Krankheitstag',sCaption) > 0) then
+          begin
+            iFontColor:= 0;
+            iLabelColor:= 8421631
+          end;
+          if (Pos('ganzer Urlaubstag',sCaption) > 0) or (Pos('halber Urlaubstag',sCaption) > 0) then
+          begin
+            iFontColor:= 0;
+            iLabelColor:= 16776960;
+          end;
+
+          if Pos('Arbeitszeit',sCaption) > 0 then
+          begin
+            iFontColor:= 0;
+            iLabelColor := 8453888;
+          end;
+          if Pos('Pause',sCaption) > 0 then
+          begin
+            iFontColor:= 0;
+            iLabelColor := 12632256
+          end;
+          if sLocation = 'Feiertag' then
+          begin
+            iFontColor:= 0;
+            iLabelColor := 8453888;
+          end;
+          if sLocation = 'Ferien' then
+          begin
+            iFontColor:= 0;
+            iLabelColor := 8453888;
+          end;
+          if sLocation = 'Kita' then
+          begin
+            iFontColor:= 0;
+            iLabelColor := 8453888;
+          end;
+          UpdateFieldValues_Integer('LabelColor','manager_kalender',iLabelColor,iSyncID);
+          UpdateFieldValues_Integer('FontColor','manager_kalender',iFontColor,iSyncID);
         end;
       end
-      else
-      begin
-        dm_PCM.qry_Work.SQL.Text:= 'Update manager_kalender SET Caption = :Caption, EventType = :EventType,' +
-																						 'Location = :Location, Message = :Message, START = :Start,' +
-																						 'Finish = :Finish, CompleteDay = :CompleteDay, Reminder = :Reminder,' +
-																						 'ReminderDate = :ReminderDate, ReminderMinutesBeforeStart = :ReminderMinutesBeforeStart,' +
-                                             'ID_Benutzer = :ID_Benutzer, Kalendername = :Kalendername, LabelColor = :LabelColor,' +
-    																				 'FontColor = :FontColor,ID_KalenderApp = :ID_KalenderApp WHERE ID = :ID';
-        dm_PCM.qry_Work.ParamByName('Caption').AsString:= sCaption;
-        dm_PCM.qry_Work.ParamByName('EventType').AsInteger:= iEventType;
-        dm_PCM.qry_Work.ParamByName('Location').AsString:= sLocation;
-        dm_PCM.qry_Work.ParamByName('Message').AsString:= sMessage;
-        dm_PCM.qry_Work.ParamByName('START').asDateTime:= StrToDateTime(sStartDate);
-        dm_PCM.qry_Work.ParamByName('Finish').asDateTime:= StrToDateTime(sFinishDate);
-        dm_PCM.qry_Work.ParamByName('ID_KalenderAPP').asInteger:= iID;
-        if bCompleteDay then
-          dm_PCM.qry_Work.ParamByName('CompleteDay').AsString:= 'true'
-        else
-          dm_PCM.qry_Work.ParamByName('CompleteDay').AsString:= 'false';
-        if bReminder then
-          dm_PCM.qry_Work.ParamByName('Reminder').AsString:= 'true'
-        else
-          dm_PCM.qry_Work.ParamByName('Reminder').AsString:= 'false';
-        dm_PCM.qry_Work.ParamByName('ReminderDate').asDateTime:= StrToDateTime(sReminderDate);
-        dm_PCM.qry_Work.ParamByName('ReminderMinutesBeforeStart').AsInteger:= iReminderMinutesBeforeStart;
-        dm_PCM.qry_Work.ParamByName('ID_Benutzer').AsInteger:= StrToInt(AID_Benutzer);
-        dm_PCM.qry_Work.ParamByName('Kalendername').AsString:= sKalendername;
-        iLabelColor:= 13083265;
-        iFontColor:= 0;
+      else begin
+       iSyncID:= dm_PCM.qry_Work.FieldByName('ID').asInteger;
+        iFontColor:= dm_PCM.qry_Work.FieldByName('FontColor').AsInteger;
+        iLabelColor:= dm_PCM.qry_Work.FieldByName('LabelColor').AsInteger;
+        if sCaption <> '' then UpdateFieldValues_String('Caption','manager_Kalender',sCaption,iSyncID);
+        if iEventType <> -1 then UpdateFieldValues_Integer('EventType','manager_Kalender',iEventType,iSyncID);
+        if sLocation <> '' then UpdateFieldValues_String('Location','manager_Kalender',sLocation,iSyncID);
+        if sMessage <> ''  then UpdateFieldValues_String('Message','manager_Kalender',sMessage,iSyncID);
+        if sStartDate <> ''  then UpdateFieldValues_TDateTime('Start','manager_Kalender',StrToDateTime(sStartDate),iSyncID);
+        if sFinishDate <> ''  then UpdateFieldValues_TDateTime('Finish','manager_Kalender',StrToDateTime(sFinishDate),iSyncID);
+        if iID <> -1 then UpdateFieldValues_Integer('ID_KalenderApp','manager_Kalender',iID,iSyncID);
+        if bCompleteDay then UpdateFieldValues_String('CompleteDay','manager_Kalender','True',iSyncID) else UpdateFieldValues_String('CompleteDay','manager_Kalender','False',iSyncID);
+        if bReminder then UpdateFieldValues_String('Reminder','manager_Kalender','True',iSyncID) else UpdateFieldValues_String('Reminder','manager_Kalender','False',iSyncID);
+        if iReminderMinutesBeforeStart <> 0 then UpdateFieldValues_integer('ReminderMinutesBeforeStart','manager_Kalender',iReminderMinutesBeforeStart,iSyncID);
+        if sReminderDate <> ''  then UpdateFieldValues_TDateTime('ReminderDate','manager_Kalender',StrToDateTime(sReminderDate),iSyncID);
+        if sKalendername <> '' then UpdateFieldValues_String('Kalendername','manager_Kalender',sKalendername,iSyncID);
+        UpdateFieldValues_Integer('Typ','manager_Kalender',2,iSyncID);
         case AnsiIndexStr(sCaption, ['Biomüll', 'Restmüll','Papier','Gelber Sack','Giftmobil']) of
           // BioMüll
           0:
@@ -948,14 +1257,53 @@ begin
             iLabelColor := 7679146;
           end;
         end;
-        dm_PCM.qry_Work.ParamByName('LabelColor').AsInteger:= iLabelColor;
-        dm_PCM.qry_Work.ParamByName('FontColor').AsInteger:= iFontColor;
-        if not ATest then
-          dm_PCM.qry_Work.ExecSQL;
+        if Pos('Geburtstag',sCaption) > 0 then
+        begin
+          iFontColor:= 0;
+          iLabelColor := 8421376;
+        end;
+        if (Pos('ganzer Krankheitstag',sCaption) > 0) or (Pos('halber Krankheitstag',sCaption) > 0) then
+        begin
+          iFontColor:= 0;
+          iLabelColor:= 8421631
+        end;
+        if (Pos('ganzer Urlaubstag',sCaption) > 0) or (Pos('halber Urlaubstag',sCaption) > 0) then
+        begin
+          iFontColor:= 0;
+          iLabelColor:= 16776960;
+        end;
+
+        if Pos('Arbeitszeit',sCaption) > 0 then
+        begin
+          iFontColor:= 0;
+          iLabelColor := 8453888;
+        end;
+        if Pos('Pause',sCaption) > 0 then
+        begin
+          iFontColor:= 0;
+          iLabelColor := 12632256
+        end;
+        if sLocation = 'Feiertag' then
+        begin
+          iFontColor:= 0;
+          iLabelColor := 8453888;
+        end;
+        if sLocation = 'Ferien' then
+        begin
+          iFontColor:= 0;
+          iLabelColor := 8453888;
+        end;
+        if sLocation = 'Kita' then
+        begin
+          iFontColor:= 0;
+          iLabelColor := 8453888;
+        end;
+        UpdateFieldValues_Integer('LabelColor','manager_kalender',iLabelColor,iSyncID);
+        UpdateFieldValues_Integer('FontColor','manager_kalender',iFontColor,iSyncID);
       end;
     end;
-    iZaehler:= iZaehler + 1;
   end;
+  iZaehler:= iZaehler + 1;
   if not Assigned(joResponseJSON) then
     joResponseJSON := TJSONObject.Create;
   joResponseJSON.AddPair(TJSONPair.Create('HasError',TJSONBool.Create(false)));
@@ -964,6 +1312,9 @@ begin
   Result := joResponseJSON;
   WriteLog(PCM_Logname,rs_PCMAPPServer_Kalenderpruefung + IntToStr(iZaehler),0);
 end;
+{$EndRegion Kalender}
+// Passwörter
+{$Region Passwords}
 // Passwörter ermitteln
 function GetPasswoerter_Intern(AID_Benutzer: string): TJSONObject;
 begin
@@ -973,8 +1324,8 @@ begin
   if not Assigned(joResponseJSON) then
     joResponseJSON := TJSONObject.Create;
   dm_PCM.qry_Work.SQL.Text :=  'SELECT pw.id AS passwoerter_ID,pw.Bezeichnung,pw.user,pw.password,pw.link,pw.VPN_SharedSecret, ' +
-                                         'pw.APP_IP,pw.APP_Port,pw.APP_Verschluesselung,pw.MAIL_Posteingangsserver,pw.MAIL_PosteingangsPort, ' +
-                                         'pw.MAIL_PosteingangsVerschluesselung,pw.MAIL_Postausgangsserver,pw.MAIL_PostausgangsPort, ' +
+                                         'pw.APP_IP,ifnull(pw.APP_Port,0) as APP_port,pw.APP_Verschluesselung,pw.MAIL_Posteingangsserver,ifnull(pw.MAIL_PosteingangsPort,0) as MAIL_PosteingangsPort, ' +
+                                         'pw.MAIL_PosteingangsVerschluesselung,pw.MAIL_Postausgangsserver,ifnull(pw.MAIL_PostausgangsPort,0) as MAIL_PostausgangsPort, ' +
                                          'pw.MAIL_PostausgangsVerschluesselung,pwt.Bezeichnung as pwtyp,pw.Wlan ' +
                                          'From manager_passwoerter pw ' +
                                          'LEFT OUTER JOIN manager_passwoerter_typ pwt ON pw.ID_Typ = pwt.ID ' +
@@ -1030,7 +1381,7 @@ begin
   Result := joResponseJSON;
 end;
 // Passwörter übernehmen
-function SetPasswoerter_Intern(AID_Benutzer: string; ATest: boolean; const AJSONObject: TJSONObject): TJSONObject;
+function SetPasswoerter_Intern(AID_Benutzer: string; const AJSONObject: TJSONObject): TJSONObject;
 var
   iID,iID_Typ: integer;
   sPasswordname: String;
@@ -1049,11 +1400,12 @@ var
   sOutgoingmail_Encryption: string;
   sPasswordtype: string;
   sWlankey:String;
+  iID_Password: integer;
   bDeleted: boolean;
+  iSyncID: integer;
 begin
   joResponseJSON := nil;
   jaDetails := nil;
-//  jSonValue := nil;
   iZaehler:= 0;
   jaDetails :=  AJSONObject.GetValue<TJSONArray>('Passwords');
   for var JSonValue in jaDetails do
@@ -1064,7 +1416,7 @@ begin
     JSonValue.TryGetValue<string>('Password',sPassword);
     JSonValue.TryGetValue<string>('Link',sLink);
     JSonValue.TryGetValue<string>('VPN_SharedSecret',sVPN_SharedSecret);
-    JSonValue.TryGetValue<string>('sAPP_IP',sAPP_IP);
+    JSonValue.TryGetValue<string>('APP_IP',sAPP_IP);
     JSonValue.TryGetValue<integer>('APP_Port',iAPP_Port);
     JSonValue.TryGetValue<string>('APP_Encryption',sAPP_Encryption);
     JSonValue.TryGetValue<string>('Incomingmail_Server',sIncomingmail_Server);
@@ -1073,31 +1425,30 @@ begin
     JSonValue.TryGetValue<string>('Outgoingmail_Server',sOutgoingmail_Server);
     JSonValue.TryGetValue<integer>('Outgoingmail_Port',iOutgoingmail_Port);
     JSonValue.TryGetValue<string>('Outgoingmail_Encryption', sOutgoingmail_Encryption);
-     JSonValue.TryGetValue<string>('Passwordtype',sPasswordtype);
+    JSonValue.TryGetValue<string>('Passwordtype',sPasswordtype);
     JSonValue.TryGetValue<string>('Wlankey',sWlankey);
+    JSonValue.TryGetValue<integer>('ID_Password',iID_Password);
     JSonValue.TryGetValue<boolean>('Deleted',bDeleted);
     if bDeleted then
     begin
-      dm_PCM.qry_Work.SQL.Text :=  'DELETE FROM manager_passwoerter WHERE Bezeichnung = :Bezeichnung';
-      dm_PCM.qry_Work.ParamByName('Bezeichnung').AsString := sPasswordname;
-      if not ATest then
-        dm_PCM.qry_Work.ExecSQL;
+      dm_PCM.qry_Work.SQL.Text:=  'Delete FROM manager_passwoerter WHERE ID = :ID';
+      dm_PCM.qry_Work.ParamByName('ID').asInteger := iID_Password;
+      dm_PCM.qry_Work.ExecSQL;
     end
     else
     begin
-//      // Check neue Datensatz
-      dm_PCM.qry_Work.SQL.Text:=  'SELECT COUNT(*) as Anzahl FROM manager_passwoerter WHERE Bezeichnung = :Bezeichnung';
-      dm_PCM.qry_Work.ParamByName('Bezeichnung').asString := sPasswordname;
+      // Check neue Datensatz
+      dm_PCM.qry_Work.SQL.Text:=  'SELECT ID FROM manager_passwoerter WHERE ID = :ID';
+      dm_PCM.qry_Work.ParamByName('ID').asInteger := iID_Password;
+
       dm_PCM.qry_Work.Open;
-      iAnzahl:= dm_PCM.qry_Work.FieldByName('Anzahl').asInteger;
-      dm_PCM.qry_Work.Close;
       iID_Typ:= -1;
       // Typ
       if sPasswordtype <> '' then
       begin
         iID_Typ:= GetIDFromTable('manager_passwoerter_typ',sPasswordtype);
       end;
-      if iAnzahl = 0 then
+      if dm_PCM.qry_Work.RecordCount = 0 then
       begin
         dm_PCM.qry_Work.SQL.Text:= 'INSERT INTO  manager_passwoerter (Bezeichnung,user,password,link,ID_benutzer,' +
 											 'VPN_SharedSecret,APP_IP,APP_Port,APP_Verschluesselung,MAIL_Posteingangsserver,' +
@@ -1124,36 +1475,27 @@ begin
         dm_PCM.qry_Work.ParamByName('MAIL_PostausgangsVerschluesselung').asString:= sOutgoingmail_Encryption;
         dm_PCM.qry_Work.ParamByName('ID_Typ').asInteger:= iID_Typ;
         dm_PCM.qry_Work.ParamByName('WLAN').asString:= sWlankey;
-        if not ATest then
-          dm_PCM.qry_Work.ExecSQL;
+        dm_PCM.qry_Work.ExecSQL;
       end
       else
       begin
-		    dm_PCM.qry_Work.SQL.Text:= 'Update manager_passwoerter SET Bezeichnung = :Bezeichnung, user = :user, password = :password, link = :link,' +
-											 'ID_benutzer = :ID_benutzer, VPN_SharedSecret = :VPN_SharedSecret, APP_IP = :APP_IP, APP_Port = :APP_Port,' +
-											 'APP_Verschluesselung = :APP_Verschluesselung, MAIL_Posteingangsserver = :MAIL_Posteingangsserver, MAIL_PosteingangsPort = :MAIL_PosteingangsPort,' +
-											 'MAIL_PosteingangsVerschluesselung = :MAIL_PosteingangsVerschluesselung,MAIL_Postausgangsserver = :MAIL_Postausgangsserver,' +
-											 'MAIL_PostausgangsPort = :MAIL_PostausgangsPort, MAIL_PostausgangsVerschluesselung = :MAIL_PostausgangsVerschluesselung,'+
-											 'ID_Typ = :ID_Typ,WLAN = :WLAN Where Bezeichnung = :Bezeichnung';
-        dm_PCM.qry_Work.ParamByName('Bezeichnung').asString:= sPasswordname;
-        dm_PCM.qry_Work.ParamByName('user').asString:= sUser;
-        dm_PCM.qry_Work.ParamByName('password').asString:= sPassword;
-        dm_PCM.qry_Work.ParamByName('link').asString:= slink;
-        dm_PCM.qry_Work.ParamByName('ID_benutzer').asInteger:= StrToInt(AID_Benutzer);
-        dm_PCM.qry_Work.ParamByName('VPN_SharedSecret').asString:= sVPN_SharedSecret;
-        dm_PCM.qry_Work.ParamByName('APP_IP').asString:= sAPP_IP;
-        dm_PCM.qry_Work.ParamByName('APP_Port').asInteger:= iAPP_Port;
-        dm_PCM.qry_Work.ParamByName('APP_Verschluesselung').asString:= sAPP_Encryption;
-        dm_PCM.qry_Work.ParamByName('MAIL_Posteingangsserver').asString:= sIncomingmail_Server;
-        dm_PCM.qry_Work.ParamByName('MAIL_PosteingangsPort').asInteger:= iIncomingmail_port;
-        dm_PCM.qry_Work.ParamByName('MAIL_PosteingangsVerschluesselung').asString:= sIncomingmail_Encryption;
-        dm_PCM.qry_Work.ParamByName('MAIL_Postausgangsserver').asString:= sOutgoingmail_Server;
-        dm_PCM.qry_Work.ParamByName('MAIL_PostausgangsPort').asInteger:= iOutgoingmail_Port;
-        dm_PCM.qry_Work.ParamByName('MAIL_PostausgangsVerschluesselung').asString:= sOutgoingmail_Encryption;
-        dm_PCM.qry_Work.ParamByName('ID_Typ').asInteger:= iID_Typ;
-        dm_PCM.qry_Work.ParamByName('WLAN').asString:= sWlankey;
-        if not ATest then
-          dm_PCM.qry_Work.ExecSQL;
+        iSyncID:= dm_PCM.qry_Work.FieldByName('ID').AsInteger;
+        if sPasswordname <> '' then UpdateFieldValues_String('Bezeichnung','manager_passwoerter',sPasswordname,iSyncID);
+        if sUser <> '' then UpdateFieldValues_String('User','manager_passwoerter',sUser,iSyncID);
+        if sPASSWORD <> '' then UpdateFieldValues_String('PASSWORD','manager_passwoerter',sPASSWORD,iSyncID);
+        if slink <> '' then UpdateFieldValues_String('link','manager_passwoerter',slink,iSyncID);
+        if sVPN_SharedSecret <> '' then UpdateFieldValues_String('VPN_SharedSecret','manager_passwoerter',sVPN_SharedSecret,iSyncID);
+        if sAPP_IP <> '' then UpdateFieldValues_String('APP_IP','manager_passwoerter',sAPP_IP,iSyncID);
+        if IntToStr(iAPP_Port) <> '' then UpdateFieldValues_Integer('APP_Port','manager_passwoerter',iAPP_Port,iSyncID);
+        if sAPP_Encryption <> '' then UpdateFieldValues_String('APP_Verschluesselung','manager_passwoerter',sAPP_Encryption,iSyncID);
+        if sIncomingmail_Server <> '' then UpdateFieldValues_String('MAIL_Posteingangsserver','manager_passwoerter',sIncomingmail_Server,iSyncID);
+        if IntToStr(iIncomingmail_Port) <> '' then UpdateFieldValues_Integer('MAIL_PosteingangsPort','manager_passwoerter',iIncomingmail_Port,iSyncID);
+        if sIncomingmail_Encryption <> '' then UpdateFieldValues_String('MAIL_PosteingangsVerschluesselung','manager_passwoerter',sIncomingmail_Encryption,iSyncID);
+        if sOutgoingmail_Server <> '' then UpdateFieldValues_String('MAIL_Postausgangsserver','manager_passwoerter',sOutgoingmail_Server,iSyncID);
+        if IntToStr(iOutgoingmail_Port) <> '' then UpdateFieldValues_Integer('MAIL_PostausgangsPort','manager_passwoerter',iOutgoingmail_Port,iSyncID);
+        if sOutgoingmail_Encryption <> '' then UpdateFieldValues_String('MAIL_PostausgangsVerschluesselung','manager_passwoerter',sOutgoingmail_Encryption,iSyncID);
+        if sPasswordtype <> '' then UpdateFieldValues_Integer('ID_Typ','manager_passwoerter',iID_Typ,iSyncID);
+        if sWlankey <> '' then UpdateFieldValues_String('WLAN','manager_passwoerter',sWlankey,iSyncID);
       end;
     end;
     iZaehler:= iZaehler + 1;
@@ -1166,6 +1508,9 @@ begin
   joResponseJSON.AddPair(TJSONPair.Create('Errormessage',TJSONString.Create('')));
   Result := joResponseJSON;
 end;
+{$EndRegion Passwords}
+// Serials
+{$Region Serials}
 // Serials ermitteln
 function GetSerials_Intern(AID_Benutzer: string): TJSONObject;
 begin
@@ -1219,7 +1564,7 @@ begin
   Result := joResponseJSON;
 end;
 // Serials übernehmen
-function SetSerials_Intern(AID_Benutzer: string; ATest: boolean; const AJSONObject: TJSONObject): TJSONObject;
+function SetSerials_Intern(AID_Benutzer: string; const AJSONObject: TJSONObject): TJSONObject;
 var
   iID: Integer;
   sSerialname: String;
@@ -1227,12 +1572,12 @@ var
   sSerialkey: String;
   sSerialType: String;
   bDeleted: boolean;
-  iID_Serial: integer;
+  iID_Serials: integer;
   iID_Typ: integer;
+  iID_Serial: integer;
 begin
   joResponseJSON := nil;
   jaDetails := nil;
-//  jSonValue := nil;
   iZaehler:= 0;
   jaDetails :=  AJSONObject.GetValue<TJSONArray>('Serials');
   for var JSonValue in jaDetails do
@@ -1242,27 +1587,26 @@ begin
     JSonValue.TryGetValue<string>('User',sUser);
     JSonValue.TryGetValue<string>('Serialkey',sSerialkey);
     JSonValue.TryGetValue<string>('SerialType',sSerialType);
+    JSonValue.TryGetValue<integer>('ID_Serials',iID_Serials);
     JSonValue.TryGetValue<boolean>('Deleted',bDeleted);
     if bDeleted then
     begin
-      dm_PCM.qry_Work.SQL.Text:= 'SELECT ID FROM manager_Serials WHERE  APP = :APP';
-      dm_PCM.qry_Work.ParamByName('App').asString := sSerialname;
+      dm_PCM.qry_Work.SQL.Text:= 'SELECT ID FROM manager_Serials WHERE  ID = :ID_Serials';
+      dm_PCM.qry_Work.ParamByName('ID_Serials').AsInteger := iID_Serials;
       dm_PCM.qry_Work.open;
       iID_Serial:= dm_PCM.qry_Work.FieldByName('ID').asInteger;
       dm_PCM.qry_Work.Close;
       dm_PCM.qry_Work.SQL.Text :=  'DELETE FROM manager_serials_keys WHERE ID_Serial = :ID_Serial';
       dm_PCM.qry_Work.ParamByName('ID_Serial').AsInteger := iID_Serial;
-      if not ATest then
-        dm_PCM.qry_Work.ExecSQL;
+      dm_PCM.qry_Work.ExecSQL;
       dm_PCM.qry_Work.SQL.Text :=  'DELETE FROM manager_serials WHERE ID = :ID_Serial';
       dm_PCM.qry_Work.ParamByName('ID_Serial').AsInteger := iID_Serial;
-      if not ATest then
-        dm_PCM.qry_Work.ExecSQL;
+      dm_PCM.qry_Work.ExecSQL;
     end
     else
     begin
-      dm_PCM.qry_Work.SQL.Text:=  'SELECT COUNT(*) as Anzahl FROM manager_Serials WHERE App = :App';
-      dm_PCM.qry_Work.ParamByName('App').asString := sSerialname;
+      dm_PCM.qry_Work.SQL.Text:=  'SELECT COUNT(*) as Anzahl FROM manager_Serials WHERE ID = :ID_Serials';
+      dm_PCM.qry_Work.ParamByName('ID_Serials').AsInteger := iID_Serials;
       dm_PCM.qry_Work.Open;
       iAnzahl:= dm_PCM.qry_Work.FieldByName('Anzahl').asInteger;
       dm_PCM.qry_Work.Close;
@@ -1290,8 +1634,7 @@ begin
         dm_PCM.qry_Work.ParamByName('User').AsString:= sUser;
         dm_PCM.qry_Work.ParamByName('Serial').AsString:= sSerialkey;
         dm_PCM.qry_Work.ParamByName('ID_Serial').asInteger:=iID_Serial;
-        if not ATest then
-          dm_PCM.qry_Work.ExecSQL;
+        dm_PCM.qry_Work.ExecSQL;
       end
       else
       begin
@@ -1310,8 +1653,7 @@ begin
         dm_PCM.qry_Work.ParamByName('ID_Serial').AsInteger:= iID_Serial;
         dm_PCM.qry_Work.ParamByName('serial').AsString:= sSerialkey;
         dm_PCM.qry_Work.ParamByName('user').AsString := suser;
-        if not ATest then
-          dm_PCM.qry_Work.ExecSQL;
+        dm_PCM.qry_Work.ExecSQL;
       end;
     end;
     iZaehler:= iZaehler + 1;
@@ -1324,6 +1666,127 @@ begin
   joResponseJSON.AddPair(TJSONPair.Create('Errormessage',TJSONString.Create('')));
   Result := joResponseJSON;
 end;
+{$EndRegion Serials}
+// Einnahmen
+{$Region Ein}
+// Einnahmen ermitteln
+function GetEinnahmen_Intern(AID_Benutzer: string): TJSONObject;
+begin         //  Receipts
+  joResponseJSON:= nil;
+  joResponseJSONData:= nil;
+  jaDetails:= nil;
+  if not Assigned(joResponseJSON) then
+    joResponseJSON := TJSONObject.Create;
+  dm_PCM.qry_Work.SQL.Text :=  'SELECT ID AS Finanzen_Einnahmen_ID, Quelle, Betrag, Bezeichnung, FixBetrag ' +
+                                         'FROM manager_finanzen_Einnahmen Where ID_Benutzer = :ID';
+  dm_PCM.qry_Work.ParamByName('ID').AsInteger := StrToInt(AID_Benutzer);
+  dm_PCM.qry_Work.Open;
+  WriteLog(PCM_Logname,rs_PCMAPPServer_Einnahmenanzahl + IntToStr(dm_PCM.qry_Work.RecordCount),0);
+  if dm_PCM.qry_Work.RecordCount > 0 then
+  begin
+    iCode:= 200;
+    sMessage:= 'OK';
+    joResponseJSON.AddPair(TJSONPair.Create('HasError',TJSONBool.Create(false)));
+    joResponseJSON.AddPair(TJSONPair.Create('ErrorCode',TJSONNumber.Create(0)));
+    joResponseJSON.AddPair(TJSONPair.Create('Errormessage',TJSONString.Create('')));
+    if not Assigned(jaDetails) then
+      jaDetails := TJSONArray.Create;
+    while not dm_PCM.qry_work.eof do
+    begin
+      if not Assigned(joResponseJSONData) then
+        joResponseJSONData := TJSONObject.Create;
+      joResponseJSONData.AddPair(TJSONPair.Create('ID', TJSONNumber.Create(dm_PCM.qry_Work.FieldByName('Finanzen_Einnahmen_ID').AsInteger)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Transmitter', TJSONString.Create(dm_PCM.qry_Work.FieldByName('Quelle').asString)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Amount', TJSONNumber.Create(dm_PCM.qry_Work.FieldByName('Betrag').AsFloat)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Description', TJSONString.Create(dm_PCM.qry_Work.FieldByName('Bezeichnung').asString)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Fixedamount', TJSONNumber.Create(dm_PCM.qry_Work.FieldByName('FixBetrag').asFloat)));
+      jaDetails.Add(joResponseJSONData);
+      joResponseJSONData:= nil;
+      dm_PCM.qry_work.Next;
+    end;
+    joResponseJSON.AddPair(TJSONPair.Create('Receipts', jaDetails));
+  end
+  else
+  begin
+    iCode:= 200;
+    sMessage:= 'OK';
+    joResponseJSON.AddPair(TJSONPair.Create('HasError',TJSONBool.Create(true)));
+    joResponseJSON.AddPair(TJSONPair.Create('ErrorCode',TJSONNumber.Create(1)));
+    joResponseJSON.AddPair(TJSONPair.Create('Errormessage',TJSONString.Create('Keine Datensätze vorhanden')));
+  end;
+  dm_PCM.qry_Work.Close;
+  Result := joResponseJSON;
+end;
+// Einnnahmen übernehmen
+function SetEinnahmen_Intern(AID_Benutzer: string; const AJSONObject: TJSONObject): TJSONObject;
+var
+  iID: Integer;
+  sTransmitter: String;
+  fAmount: double;
+  sDescription: String;
+  fFixedamount: double;
+  iID_Receipts: Integer;
+  bDeleted: boolean;
+  iSyncID: Integer;
+begin
+  joResponseJSON := nil;
+  jaDetails := nil;
+  iZaehler:= 0;
+  jaDetails :=  AJSONObject.GetValue<TJSONArray>('Receipts');
+  for var JSonValue in jaDetails do
+  begin
+    JSonValue.TryGetValue<integer>('ID',iID);
+    JSonValue.TryGetValue<string>('Transmitter',sTransmitter);
+    JSonValue.TryGetValue<Float64>('Amount',fAmount);
+    JSonValue.TryGetValue<string>('Description',sDescription);
+    JSonValue.TryGetValue<Float64>('Fixedamount',fFixedamount);
+    JSonValue.TryGetValue<integer>('ID_Receipts',iID_Receipts);
+    JSonValue.TryGetValue<boolean>('Deleted',bDeleted);
+    if bDeleted then
+    begin
+      dm_PCM.qry_Work.SQL.Text :=  'DELETE FROM manager_finanzen_einnahmen WHERE ID = :iID_Receipts';
+      dm_PCM.qry_Work.ParamByName('iID_Receipts').asInteger := iID_Receipts;
+      dm_PCM.qry_Work.ExecSQL;
+    end
+    else
+    begin
+      // Check neue Datensatz
+      dm_PCM.qry_Work.SQL.Text:=  'SELECT ID FROM manager_finanzen_einnahmen WHERE ID = :ID';
+      dm_PCM.qry_Work.ParamByName('ID').asInteger := iID_Receipts;
+      dm_PCM.qry_Work.Open;
+      if dm_PCM.qry_Work.RecordCount = 0 then
+      begin
+        dm_PCM.qry_Work.SQL.Text:=  'INSERT INTO manager_finanzen_einnahmen (Quelle,Betrag,Bezeichnung,ID_Benutzer,FixBetrag' +
+                                                ') Values (:Quelle,:Betrag,:Bezeichnung,:ID_Benutzer,:FixBetrag)';
+        dm_PCM.qry_Work.ParamByName('Quelle').AsString:= sTransmitter;
+        dm_PCM.qry_Work.ParamByName('Betrag').asFloat := fAmount;
+        dm_PCM.qry_Work.ParamByName('FixBetrag').asFloat := fFixedAmount;
+        dm_PCM.qry_Work.ParamByName('Bezeichnung').asString := sDescription;
+        dm_PCM.qry_Work.ParamByName('ID_Benutzer').asInteger:=StrToInt(AID_Benutzer);
+        dm_PCM.qry_Work.ExecSQL;
+      end
+      else
+      begin
+        iSyncID:= dm_Pcm.qry_Work.FieldByName('ID').AsInteger;
+        if sTransmitter <> '' then UpdateFieldValues_String('Quelle','manager_finanzen_einnahmen',sTransmitter,iSyncID);
+        if FloatToStr(fAmount) <> '' then UpdateFieldValues_Float('Betrag','manager_finanzen_einnahmen',fAmount,iSyncID);
+        if FloatToStr(fFixedamount) <> '' then UpdateFieldValues_Float('FixBetrag','manager_finanzen_einnahmen',fFixedamount,iSyncID);
+        if sDescription <> '' then UpdateFieldValues_String('Bezeichnung','manager_finanzen_einnahmen',sDescription,iSyncID);
+      end;
+    end;
+    iZaehler:= iZaehler + 1;
+  end;
+  WriteLog(PCM_Logname,rs_PCMAPPServer_Einnahmenpruefung + IntToStr(iZaehler),0);
+  if not Assigned(joResponseJSON) then
+    joResponseJSON := TJSONObject.Create;
+  joResponseJSON.AddPair(TJSONPair.Create('HasError',TJSONBool.Create(false)));
+  joResponseJSON.AddPair(TJSONPair.Create('ErrorCode',TJSONNumber.Create(0)));
+  joResponseJSON.AddPair(TJSONPair.Create('Errormessage',TJSONString.Create('')));
+  Result := joResponseJSON;
+end;
+{$EndRegion Ein}
+// Ausgaben
+{$Region Aus}
 // Ausgaben ermitteln
 function GetAusgaben_Intern(AID_Benutzer: string): TJSONObject;
 begin             //Expenditure
@@ -1379,24 +1842,25 @@ begin             //Expenditure
   Result := joResponseJSON;
 end;
 // Ausgaben übernehmen
-function SetAusgaben_Intern(AID_Benutzer: string; ATest: boolean; const AJSONObject: TJSONObject): TJSONObject;
+function SetAusgaben_Intern(AID_Benutzer: string; const AJSONObject: TJSONObject): TJSONObject;
 var
   iID: integer;
   sReceiver: string;
   sDescription: string;
   sAccountnumber: string;
   sBankcode: string;
-  sAmount: string;
+  fAmount: double;
   bFixedcosts: boolean;
   iValidmonth: integer;
   iValidyear: integer;
   sUse: string;
-  sFixedamount: string;
+  fFixedamount: double;
   bDeleted: boolean;
+  iID_Expenditure: integer;
+  iSyncID: integer;
 begin
   joResponseJSON := nil;
   jaDetails := nil;
-//  jSonValue := nil;
   iZaehler:= 0;
   jaDetails :=  AJSONObject.GetValue<TJSONArray>('Expenditure');
   for var JSonValue in jaDetails do
@@ -1406,37 +1870,36 @@ begin
     JSonValue.TryGetValue<string>('Description',sDescription);
     JSonValue.TryGetValue<string>('Accountnumber',sAccountnumber);
     JSonValue.TryGetValue<string>('Bankcode',sBankcode);
-    JSonValue.TryGetValue<string>('Amount',sAmount);
+    JSonValue.TryGetValue<Float64>('Amount',fAmount);
     JSonValue.TryGetValue<Boolean>('Fixedcosts',bFixedcosts);
     JSonValue.TryGetValue<Integer>('Validmonth',iValidmonth);
     JSonValue.TryGetValue<Integer>('Validyear',iValidyear);
     JSonValue.TryGetValue<string>('Use',sUse);
-    JSonValue.TryGetValue<string>('Fixedamount',sFixedamount);
+    JSonValue.TryGetValue<Float64>('Fixedamount',fFixedamount);
+    JSonValue.TryGetValue<integer>('ID_Expenditure',iID_Expenditure);
     JSonValue.TryGetValue<Boolean>('Deleted',bDeleted);
     if bDeleted then
     begin
-      dm_PCM.qry_Work.SQL.Text :=  'DELETE FROM manager_finanzen_Ausgaben WHERE Name = :Name';
-      dm_PCM.qry_Work.ParamByName('Name').asString := sReceiver;
+      dm_PCM.qry_Work.SQL.Text :=  'DELETE FROM manager_finanzen_Ausgaben WHERE ID = :ID';
+      dm_PCM.qry_Work.ParamByName('ID').AsInteger := iID_Expenditure;
       dm_PCM.qry_Work.ExecSQL;
     end
     else
     begin
       // Check neue Datensatz
-      dm_PCM.qry_Work.SQL.Text:=  'SELECT COUNT(*) as Anzahl FROM manager_finanzen_Ausgaben WHERE Name = :Name';
-      dm_PCM.qry_Work.ParamByName('Name').asString := sReceiver;
+      dm_PCM.qry_Work.SQL.Text:=  'SELECT ID FROM manager_finanzen_Ausgaben WHERE Name = :Name';
+      dm_PCM.qry_Work.ParamByName('ID').AsInteger := iID_Expenditure;
       dm_PCM.qry_Work.Open;
-      iAnzahl:= dm_PCM.qry_Work.FieldByName('Anzahl').asInteger;
-      dm_PCM.qry_Work.Close;
-      if iAnzahl = 0 then
+      if dm_PCM.qry_Work.RecordCount = 0 then
       begin
         dm_PCM.qry_Work.SQL.Text:=  'INSERT INTO manager_finanzen_Ausgaben (Name,Beschreibung,Kontonummer,Bankleitzahl,Betrag,Fixkosten,Gueltig_Monat,Gueltig_Jahr,ID_Benutzer,Verwendungszweck,FixBetrag' +
-                                                ') Values (:Name,:Beschreibung,:Kontonummer,:Bankleitzahl,:Betrag,:Fixkosten,:Gueltig_Monat,:Gueltig_Jahr,:ID_Benutzer,:Verwendungszweck,:FixBetrag)';
+                                    ') Values (:Name,:Beschreibung,:Kontonummer,:Bankleitzahl,:Betrag,:Fixkosten,:Gueltig_Monat,:Gueltig_Jahr,:ID_Benutzer,:Verwendungszweck,:FixBetrag)';
         dm_PCM.qry_Work.ParamByName('Name').AsString:= sReceiver;
         dm_PCM.qry_Work.ParamByName('Beschreibung').asString := sDescription;
         dm_PCM.qry_Work.ParamByName('Kontonummer').asString := sAccountnumber;
         dm_PCM.qry_Work.ParamByName('Bankleitzahl').asString := sBankcode;
-        dm_PCM.qry_Work.ParamByName('Betrag').asFloat := StrToFloat(StringReplace(sAmount,'.',',',[rfReplaceAll]));
-        dm_PCM.qry_Work.ParamByName('FixBetrag').asFloat := StrToFloat(StringReplace(sFixedamount,'.',',',[rfReplaceAll]));
+        dm_PCM.qry_Work.ParamByName('Betrag').asFloat := fAmount;
+        dm_PCM.qry_Work.ParamByName('FixBetrag').asFloat := fFixedamount;
         if bFixedcosts then
           dm_PCM.qry_Work.ParamByName('Fixkosten').asString := 'true'
         else
@@ -1449,24 +1912,17 @@ begin
       end
       else
       begin
-        dm_PCM.qry_Work.SQL.Text:=  'Update manager_finanzen_Ausgaben SET Name = :Name,Beschreibung = :Beschreibung,Kontonummer = :Kontonummer,Bankleitzahl = :Bankleitzahl, ' +
-                                              'Betrag = :Betrag,Fixkosten = :Fixkosten,Gueltig_Monat = :Gueltig_Monat,Gueltig_Jahr = :Gueltig_Jahr,Verwendungszweck = :Verwendungszweck, ' +
-                                              'FixBetrag = :FixBetrag ' +
-                                              'Where Name = :Name';
-        dm_PCM.qry_Work.ParamByName('Name').AsString:= sReceiver;
-        dm_PCM.qry_Work.ParamByName('Beschreibung').asString := sDescription;
-        dm_PCM.qry_Work.ParamByName('Kontonummer').asString := sAccountnumber;
-        dm_PCM.qry_Work.ParamByName('Bankleitzahl').asString := sBankcode;
-        dm_PCM.qry_Work.ParamByName('Betrag').asFloat := StrToFloat(StringReplace(sAmount,'.',',',[rfReplaceAll]));
-        dm_PCM.qry_Work.ParamByName('FixBetrag').asFloat := StrToFloat(StringReplace(sFixedamount,'.',',',[rfReplaceAll]));
-        if bFixedcosts then
-          dm_PCM.qry_Work.ParamByName('Fixkosten').asString := 'true'
-        else
-          dm_PCM.qry_Work.ParamByName('Fixkosten').AsString := 'false';
-        dm_PCM.qry_Work.ParamByName('Gueltig_Monat').AsInteger := iValidmonth;
-        dm_PCM.qry_Work.ParamByName('Gueltig_Jahr').AsInteger := iValidYear;
-        dm_PCM.qry_Work.ParamByName('Verwendungszweck').asString := sUse;
-        dm_PCM.qry_Work.ExecSQL;
+        iSyncID:= dm_Pcm.qry_Work.FieldByName('ID').AsInteger;
+        if sReceiver <> '' then UpdateFieldValues_String('Name','manager_finanzen_Ausgaben',sReceiver,iSyncID);
+        if sDescription <> '' then UpdateFieldValues_String('Beschreibung','manager_finanzen_Ausgaben',sDescription,iSyncID);
+        if sAccountnumber <> '' then UpdateFieldValues_String('Kontonummer','manager_finanzen_Ausgaben',sAccountnumber,iSyncID);
+        if sBankcode <> '' then UpdateFieldValues_String('Bankleitzahl','manager_finanzen_Ausgaben',sBankcode,iSyncID);
+        if FloatToStr(fAmount) <> '' then UpdateFieldValues_Float('Betrag','manager_finanzen_Ausgaben',fAmount,iSyncID);
+        if FloatToStr(fFixedamount) <> '' then UpdateFieldValues_Float('FixBetrag','manager_finanzen_Ausgaben',fFixedamount,iSyncID);
+        if BoolToStr(bFixedcosts) <> '' then UpdateFieldValues_Boolean('Fixkosten','manager_finanzen_Ausgaben',bFixedcosts,iSyncID);
+        if IntToStr(iValidmonth) <> '' then UpdateFieldValues_Integer('Gueltig_Monat','manager_finanzen_Ausgaben',iValidmonth,iSyncID);
+        if IntToStr(iValidyear) <> '' then UpdateFieldValues_Integer('Gueltig_Jahr','manager_finanzen_Ausgaben',iValidyear,iSyncID);
+        if sUSe <> ''  then UpdateFieldValues_String('Verwendungszweck','manager_finanzen_Ausgaben',sUse,iSyncID);
       end;
     end;
     iZaehler:= iZaehler + 1;
@@ -1479,16 +1935,19 @@ begin
   joResponseJSON.AddPair(TJSONPair.Create('Errormessage',TJSONString.Create('')));
   Result := joResponseJSON;
 end;
-// Einnahmen ermitteln
-function GetEinnahmen_Intern(AID_Benutzer: string): TJSONObject;
-begin         //  Receipts
+{$EndRegion Aus}
+// Belege
+{$Region Belege}
+// Belege ermitteln
+function GetVouchers_Intern(AID_Benutzer: string): TJSONObject;
+begin
   joResponseJSON:= nil;
   joResponseJSONData:= nil;
   jaDetails:= nil;
   if not Assigned(joResponseJSON) then
     joResponseJSON := TJSONObject.Create;
-  dm_PCM.qry_Work.SQL.Text :=  'SELECT ID AS Finanzen_Einnahmen_ID, Quelle, Betrag, Bezeichnung, FixBetrag ' +
-                                         'FROM manager_finanzen_Einnahmen Where ID_Benutzer = :ID';
+  dm_PCM.qry_Work.SQL.Text :=  'SELECT ID AS Finanzen_Belege_ID, Nummer, Datum, Aussteller, Betrag, Kategorie, ifnull(Jahr,0) as Jahr, ifnull(Monat,0) as Monat ' +
+                                         'FROM manager_finanzen_Belege Where ID_Benutzer = :ID';
   dm_PCM.qry_Work.ParamByName('ID').AsInteger := StrToInt(AID_Benutzer);
   dm_PCM.qry_Work.Open;
   WriteLog(PCM_Logname,rs_PCMAPPServer_Einnahmenanzahl + IntToStr(dm_PCM.qry_Work.RecordCount),0);
@@ -1505,16 +1964,21 @@ begin         //  Receipts
     begin
       if not Assigned(joResponseJSONData) then
         joResponseJSONData := TJSONObject.Create;
-      joResponseJSONData.AddPair(TJSONPair.Create('ID', TJSONNumber.Create(dm_PCM.qry_Work.FieldByName('Finanzen_Einnahmen_ID').AsInteger)));
-      joResponseJSONData.AddPair(TJSONPair.Create('Transmitter', TJSONString.Create(dm_PCM.qry_Work.FieldByName('Quelle').asString)));
-      joResponseJSONData.AddPair(TJSONPair.Create('Amount', TJSONNumber.Create(dm_PCM.qry_Work.FieldByName('Betrag').AsFloat)));
-      joResponseJSONData.AddPair(TJSONPair.Create('Description', TJSONString.Create(dm_PCM.qry_Work.FieldByName('Bezeichnung').asString)));
-      joResponseJSONData.AddPair(TJSONPair.Create('Fixedamount', TJSONNumber.Create(dm_PCM.qry_Work.FieldByName('FixBetrag').asFloat)));
+      joResponseJSONData.AddPair(TJSONPair.Create('ID', TJSONNumber.Create(dm_PCM.qry_Work.FieldByName('Finanzen_Belege_ID').AsInteger)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Number', TJSONString.Create(dm_PCM.qry_Work.FieldByName('Nummer').asString)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Date', TJSONString.Create(DateToStr(dm_PCM.qry_Work.FieldByName('Datum').AsDateTime))));
+      joResponseJSONData.AddPair(TJSONPair.Create('Exhibitor', TJSONString.Create(dm_PCM.qry_Work.FieldByName('Aussteller').asString)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Amount', TJSONNumber.Create(dm_PCM.qry_Work.FieldByName('Betrag').asFloat)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Categorie', TJSONNumber.Create(dm_PCM.qry_Work.FieldByName('Kategorie').AsInteger)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Month', TJSONNumber.Create(dm_PCM.qry_Work.FieldByName('Monat').AsInteger)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Year', TJSONNumber.Create(dm_PCM.qry_Work.FieldByName('Jahr').AsInteger)));
+
+
       jaDetails.Add(joResponseJSONData);
       joResponseJSONData:= nil;
       dm_PCM.qry_work.Next;
     end;
-    joResponseJSON.AddPair(TJSONPair.Create('Receipts', jaDetails));
+    joResponseJSON.AddPair(TJSONPair.Create('Vouchers', jaDetails));
   end
   else
   begin
@@ -1527,66 +1991,75 @@ begin         //  Receipts
   dm_PCM.qry_Work.Close;
   Result := joResponseJSON;
 end;
-// Einnnahmen übernehmen
-function SetEinnahmen_Intern(AID_Benutzer: string; ATest: boolean; const AJSONObject: TJSONObject): TJSONObject;
+// Belege übernehmen
+function SetVouchers_Intern(AID_Benutzer: string; const AJSONObject: TJSONObject): TJSONObject;
 var
   iID: Integer;
-  sTransmitter: String;
-  sAmount: String;
-  sDescription: String;
-  sFixedamount: String;
+  sNumber: String;
+  sDate: string;
+  sExhibitor: String;
+  fAmount: double;
+  iID_Categorie: Integer;
+  iMonth: Integer;
+  iYear: Integer;
+  iID_Vouchers: Integer;
   bDeleted: boolean;
+  iSyncID: Integer;
 begin
   joResponseJSON := nil;
   jaDetails := nil;
 //  jSonValue := nil;
   iZaehler:= 0;
-  jaDetails :=  AJSONObject.GetValue<TJSONArray>('Receipts');
+  jaDetails :=  AJSONObject.GetValue<TJSONArray>('Vouchers');
   for var JSonValue in jaDetails do
   begin
     JSonValue.TryGetValue<integer>('ID',iID);
-    JSonValue.TryGetValue<string>('Transmitter',sTransmitter);
-    JSonValue.TryGetValue<string>('Amount',sAmount);
-    JSonValue.TryGetValue<string>('Description',sDescription);
-    JSonValue.TryGetValue<string>('Fixedamount',sFixedamount);
+    JSonValue.TryGetValue<string>('Number',sNumber);
+    JSonValue.TryGetValue<string>('Date',sDate);
+    JSonValue.TryGetValue<string>('Exhibitor',sExhibitor);
+    JSonValue.TryGetValue<Float64>('Amount',fAmount);
+    JSonValue.TryGetValue<integer>('Categorie',iID_Categorie);
+    JSonValue.TryGetValue<integer>('Month',iMonth);
+    JSonValue.TryGetValue<integer>('Year',iYear);
+    JSonValue.TryGetValue<integer>('ID_Vouchers',iID_Vouchers);
     JSonValue.TryGetValue<boolean>('Deleted',bDeleted);
+
     if bDeleted then
     begin
-      dm_PCM.qry_Work.SQL.Text :=  'DELETE FROM manager_finanzen_einnahmen WHERE Quelle = :Quelle';
-      dm_PCM.qry_Work.ParamByName('Quelle').asString := sTransmitter;
-      if not ATest then
-        dm_PCM.qry_Work.ExecSQL;
+      dm_PCM.qry_Work.SQL.Text :=  'DELETE FROM manager_finanzen_belege WHERE ID = :iID_Receipts';
+      dm_PCM.qry_Work.ParamByName('iID_Receipts').asInteger := iID_Vouchers;
+      dm_PCM.qry_Work.ExecSQL;
     end
     else
     begin
       // Check neue Datensatz
-      dm_PCM.qry_Work.SQL.Text:=  'SELECT COUNT(*) as Anzahl FROM manager_finanzen_einnahmen WHERE Quelle = :Quelle';
-      dm_PCM.qry_Work.ParamByName('Quelle').asString := sTransmitter;
+      dm_PCM.qry_Work.SQL.Text:=  'SELECT ID FROM manager_finanzen_belege WHERE ID = :ID';
+      dm_PCM.qry_Work.ParamByName('ID').asInteger := iID_Vouchers;
       dm_PCM.qry_Work.Open;
-      iAnzahl:= dm_PCM.qry_Work.FieldByName('Anzahl').asInteger;
-      dm_PCM.qry_Work.Close;
-      if iAnzahl = 0 then
+      if dm_PCM.qry_Work.RecordCount = 0 then
       begin
-        dm_PCM.qry_Work.SQL.Text:=  'INSERT INTO manager_finanzen_einnahmen (Quelle,Betrag,Bezeichnung,ID_Benutzer,FixBetrag' +
-                                                ') Values (:Quelle,:Betrag,:Bezeichnung,:ID_Benutzer,:FixBetrag)';
-        dm_PCM.qry_Work.ParamByName('Quelle').AsString:= sTransmitter;
-        dm_PCM.qry_Work.ParamByName('Betrag').asFloat := StrToFloat(StringReplace(sAmount,'.',',',[rfReplaceAll]));
-        dm_PCM.qry_Work.ParamByName('FixBetrag').asFloat := StrToFloat(StringReplace(sFixedAmount,'.',',',[rfReplaceAll]));
-        dm_PCM.qry_Work.ParamByName('Bezeichnung').asString := sDescription;
+        dm_PCM.qry_Work.SQL.Text:=  'INSERT INTO manager_finanzen_belege (Nummer,Datum,Aussteller,Betrag,Kategorie,Monat,Jahr,ID_Benutzer' +
+                                    ') Values (:Nummer,:Datum,:Aussteller,:Betrag,:Kategorie,:Monat,:Jahr,:ID_Benutzer)';
+        dm_PCM.qry_Work.ParamByName('Nummer').AsString:= sNumber;
+        dm_PCM.qry_Work.ParamByName('Datum').AsDate:= StrToDate(sDate);
+        dm_PCM.qry_Work.ParamByName('Aussteller').AsString:= sExhibitor;
+        dm_PCM.qry_Work.ParamByName('Betrag').asFloat := famount;
+        dm_PCM.qry_Work.ParamByName('Kategorie').asInteger := iID_Categorie;
+        dm_PCM.qry_Work.ParamByName('Monat').asInteger := iMonth;
+        dm_PCM.qry_Work.ParamByName('Jahr').asInteger := iYear;
         dm_PCM.qry_Work.ParamByName('ID_Benutzer').asInteger:=StrToInt(AID_Benutzer);
-        if not ATest then
-          dm_PCM.qry_Work.ExecSQL;
+        dm_PCM.qry_Work.ExecSQL;
       end
       else
       begin
-        dm_PCM.qry_Work.SQL.Text:=  'Update manager_finanzen_einnahmen SET FixBetrag= :FixBetrag,Betrag= :Betrag,Bezeichnung= :Bezeichnung ' +
-                                              'Where Quelle = :Quelle';
-        dm_PCM.qry_Work.ParamByName('Quelle').AsString:= sTransmitter;
-        dm_PCM.qry_Work.ParamByName('Betrag').asFloat := StrToFloat(StringReplace(sAmount,'.',',',[rfReplaceAll]));
-        dm_PCM.qry_Work.ParamByName('FixBetrag').asFloat := StrToFloat(StringReplace(sFixedAmount,'.',',',[rfReplaceAll]));
-        dm_PCM.qry_Work.ParamByName('Bezeichnung').asString := sDescription;
-        if not ATest then
-          dm_PCM.qry_Work.ExecSQL;
+        iSyncID:= dm_Pcm.qry_Work.FieldByName('ID').AsInteger;
+        if sNumber <> '' then UpdateFieldValues_String('Nummer','manager_finanzen_belege',sNumber,iSyncID);
+        if sDate <> '' then UpdateFieldValues_TDate('Datum','Belege',StrToDate(sDate),iSyncID);
+        if sExhibitor <> '' then UpdateFieldValues_String('Aussteller','manager_finanzen_belege',sExhibitor,iSyncID);
+        if FloatToStr(famount) <> '' then UpdateFieldValues_Float('Betrag','manager_finanzen_belege',famount,iSyncID);
+        if IntToStr(iID_Categorie) <> ''  then UpdateFieldValues_Integer('Kategorie','manager_finanzen_belege',iID_Categorie,iSyncID);
+        if IntToStr(iMonth) <> '' then UpdateFieldValues_Integer('Monat','manager_finanzen_belege',iMonth,iSyncID);
+        if IntToStr(iYear) <> '' then UpdateFieldValues_Integer('Jahr','manager_finanzen_belege',iYear,iSyncID);
       end;
     end;
     iZaehler:= iZaehler + 1;
@@ -1599,4 +2072,135 @@ begin
   joResponseJSON.AddPair(TJSONPair.Create('Errormessage',TJSONString.Create('')));
   Result := joResponseJSON;
 end;
+{$EndRegion Belege}
+// Gutscheine
+{$Region Gutscheine}
+// Gutscheine ermitteln
+function GetGiftCards_Intern(AID_Benutzer: string): TJSONObject;
+begin         //  Receipts
+  joResponseJSON:= nil;
+  joResponseJSONData:= nil;
+  jaDetails:= nil;
+  if not Assigned(joResponseJSON) then
+    joResponseJSON := TJSONObject.Create;
+  dm_PCM.qry_Work.SQL.Text :=  'SELECT ID AS Finanzen_Gutschein_ID, Nummer, Bezeichnung, Datum, Wert, RestWert, Abfragepin ' +
+                                         'FROM manager_finanzen_Gutschein Where ID_Benutzer = :ID';
+  dm_PCM.qry_Work.ParamByName('ID').AsInteger := StrToInt(AID_Benutzer);
+  dm_PCM.qry_Work.Open;
+  WriteLog(PCM_Logname,rs_PCMAPPServer_Einnahmenanzahl + IntToStr(dm_PCM.qry_Work.RecordCount),0);
+  if dm_PCM.qry_Work.RecordCount > 0 then
+  begin
+    iCode:= 200;
+    sMessage:= 'OK';
+    joResponseJSON.AddPair(TJSONPair.Create('HasError',TJSONBool.Create(false)));
+    joResponseJSON.AddPair(TJSONPair.Create('ErrorCode',TJSONNumber.Create(0)));
+    joResponseJSON.AddPair(TJSONPair.Create('Errormessage',TJSONString.Create('')));
+    if not Assigned(jaDetails) then
+      jaDetails := TJSONArray.Create;
+    while not dm_PCM.qry_work.eof do
+    begin
+      if not Assigned(joResponseJSONData) then
+        joResponseJSONData := TJSONObject.Create;
+      joResponseJSONData.AddPair(TJSONPair.Create('ID', TJSONNumber.Create(dm_PCM.qry_Work.FieldByName('Finanzen_Gutschein_ID').AsInteger)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Number', TJSONString.Create(dm_PCM.qry_Work.FieldByName('Nummer').asString)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Description', TJSONString.Create(dm_PCM.qry_Work.FieldByName('Bezeichnung').asString)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Date', TJSONString.Create(DatetoStr(dm_PCM.qry_Work.FieldByName('Datum').AsDateTime))));
+      joResponseJSONData.AddPair(TJSONPair.Create('Value', TJSONNumber.Create(dm_PCM.qry_Work.FieldByName('Wert').AsFloat)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Remaining_value', TJSONNumber.Create(dm_PCM.qry_Work.FieldByName('RestWert').asFloat)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Pincode', TJSONString.Create(dm_PCM.qry_Work.FieldByName('Abfragepin').AsString)));
+
+      jaDetails.Add(joResponseJSONData);
+      joResponseJSONData:= nil;
+      dm_PCM.qry_work.Next;
+    end;
+    joResponseJSON.AddPair(TJSONPair.Create('Giftcards', jaDetails));
+  end
+  else
+  begin
+    iCode:= 200;
+    sMessage:= 'OK';
+    joResponseJSON.AddPair(TJSONPair.Create('HasError',TJSONBool.Create(true)));
+    joResponseJSON.AddPair(TJSONPair.Create('ErrorCode',TJSONNumber.Create(1)));
+    joResponseJSON.AddPair(TJSONPair.Create('Errormessage',TJSONString.Create('Keine Datensätze vorhanden')));
+  end;
+  dm_PCM.qry_Work.Close;
+  Result := joResponseJSON;
+end;
+// Gutscheine übernehmen
+function SetGiftCards_Intern(AID_Benutzer: string; const AJSONObject: TJSONObject): TJSONObject;
+var
+  iID: Integer;
+  sNumber: String;
+  sDescription: String;
+  sDate: string;
+  fValue: double;
+  fRemaining_value: double;
+  sPincode: string;
+  iID_Giftcards: Integer;
+  bDeleted: boolean;
+  iSyncID: Integer;
+begin
+  joResponseJSON := nil;
+  jaDetails := nil;
+  iZaehler:= 0;
+  jaDetails :=  AJSONObject.GetValue<TJSONArray>('Giftcards');
+  for var JSonValue in jaDetails do
+  begin
+    JSonValue.TryGetValue<integer>('ID',iID);
+    JSonValue.TryGetValue<string>('Number',sNumber);
+    JSonValue.TryGetValue<string>('Description',sDescription);
+    JSonValue.TryGetValue<string>('Date',sDate);
+    JSonValue.TryGetValue<Float64>('Value',fValue);
+    JSonValue.TryGetValue<Float64>('Remaining_value',fRemaining_value);
+    JSonValue.TryGetValue<string>('Pincode',sPincode);
+    JSonValue.TryGetValue<integer>('ID_Giftcards',iID_Giftcards);
+    JSonValue.TryGetValue<boolean>('Deleted',bDeleted);
+    if bDeleted then
+    begin
+      dm_PCM.qry_Work.SQL.Text :=  'DELETE FROM manager_finanzen_gutschein WHERE ID = :iID_Receipts';
+      dm_PCM.qry_Work.ParamByName('iID_Receipts').asInteger := iID_Giftcards;
+      dm_PCM.qry_Work.ExecSQL;
+    end
+    else
+    begin
+      // Check neue Datensatz
+      dm_PCM.qry_Work.SQL.Text:=  'SELECT ID FROM manager_finanzen_gutschein WHERE ID = :ID';
+      dm_PCM.qry_Work.ParamByName('ID').asInteger := iID_Giftcards;
+      dm_PCM.qry_Work.Open;
+      if dm_PCM.qry_Work.RecordCount = 0 then
+      begin
+        dm_PCM.qry_Work.SQL.Text:=  'INSERT INTO manager_finanzen_gutschein (Nummer,Bezeichnung,Wert,RestWert,Datum,AbfragePin,ID_Benutzer' +
+                                    ') Values (:Nummer,:Bezeichnung,:Wert,:RestWert,:Datum,:AbfragePin,:ID_Benutzer)';
+        dm_PCM.qry_Work.ParamByName('Nummer').AsString:= sNumber;
+        dm_PCM.qry_Work.ParamByName('Datum').AsDate := StrToDate(sDate);
+        dm_PCM.qry_Work.ParamByName('Bezeichnung').asString := sDescription;
+        dm_PCM.qry_Work.ParamByName('Wert').asFloat := fValue;
+        dm_PCM.qry_Work.ParamByName('RestWert').asFloat := fRemaining_value;
+        dm_PCM.qry_Work.ParamByName('AbfragePin').asString := sPincode;
+        dm_PCM.qry_Work.ParamByName('ID_Benutzer').asInteger:=StrToint(AID_Benutzer);
+        dm_PCM.qry_Work.ExecSQL;
+      end
+      else
+      begin
+        iSyncID:= dm_PCM.qry_Work.FieldByName('ID').AsInteger;
+        if sNumber <> '' then UpdateFieldValues_String('Nummer','manager_finanzen_gutschein',sNumber,iSyncID);
+        if sDescription <> '' then UpdateFieldValues_String('Bezeichnung','manager_finanzen_gutschein',sDescription,iSyncID);
+        if FloatToStr(fValue) <> '' then UpdateFieldValues_Float('Wert','manager_finanzen_gutschein',fValue,iSyncID);
+        if FloatToStr(fRemaining_value) <> '' then UpdateFieldValues_Float('Restwert','manager_finanzen_gutschein',fRemaining_value,iSyncID);
+        if sDate <> '' then UpdateFieldValues_TDate('Datum','manager_finanzen_gutschein',StrToDate(sDate),iSyncID);
+        if sPincode <> '' then UpdateFieldValues_String('Abfragepin','manager_finanzen_gutschein',sPinCode,iSyncID);
+      end;
+    end;
+    iZaehler:= iZaehler + 1;
+  end;
+  WriteLog(PCM_Logname,rs_PCMAPPServer_Einnahmenpruefung + IntToStr(iZaehler),0);
+  if not Assigned(joResponseJSON) then
+    joResponseJSON := TJSONObject.Create;
+  joResponseJSON.AddPair(TJSONPair.Create('HasError',TJSONBool.Create(false)));
+  joResponseJSON.AddPair(TJSONPair.Create('ErrorCode',TJSONNumber.Create(0)));
+  joResponseJSON.AddPair(TJSONPair.Create('Errormessage',TJSONString.Create('')));
+  Result := joResponseJSON;
+end;
+{$EndRegion Gutscheine}
+{$EndRegion APPapi}
 end.

@@ -18,10 +18,13 @@ object dm_PCM: Tdm_PCM
   end
   object qry_work: TFDQuery
     Connection = con_PCM
+    FetchOptions.AssignedValues = [evMode, evRecordCountMode]
+    FetchOptions.Mode = fmAll
+    FetchOptions.RecordCountMode = cmTotal
     SQL.Strings = (
       '')
-    Left = 608
-    Top = 448
+    Left = 96
+    Top = 152
   end
   object FDPhysMySQLDriverLink1: TFDPhysMySQLDriverLink
     Left = 608
@@ -39,14 +42,14 @@ object dm_PCM: Tdm_PCM
     Connection = con_PCM
     SQL.Strings = (
       '')
-    Left = 656
-    Top = 448
+    Left = 144
+    Top = 152
   end
   object qry_Service: TFDQuery
     Connection = con_PCM
     SQL.Strings = (
       '')
-    Left = 144
-    Top = 296
+    Left = 96
+    Top = 96
   end
 end
