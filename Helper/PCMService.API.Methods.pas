@@ -549,19 +549,25 @@ end;
 //Checkserver
 function Checkserver_intern: TJSONObject;
 begin
-  joResponseJSON:= nil;
-  if not Assigned(joResponseJSON) then
-    joResponseJSON := TJSONObject.Create;
-  joResponseJSON.AddPair(TJSONPair.Create('HasError',TJSONBool.Create(false)));
-  joResponseJSON.AddPair(TJSONPair.Create('ErrorCode',TJSONNumber.Create(0)));
-  joResponseJSON.AddPair(TJSONPair.Create('Errormessage',TJSONString.Create('')));
-  Result := joResponseJSON;
+  try
+    joResponseJSON:= nil;
+    if not Assigned(joResponseJSON) then
+      joResponseJSON := TJSONObject.Create;
+    joResponseJSON.AddPair(TJSONPair.Create('HasError',TJSONBool.Create(false)));
+    joResponseJSON.AddPair(TJSONPair.Create('ErrorCode',TJSONNumber.Create(0)));
+    joResponseJSON.AddPair(TJSONPair.Create('Errormessage',TJSONString.Create('')));
+    Result := joResponseJSON;
+  except
+    on e:Exception do
+      WriteLog(PCM_Logname,'Checkserver:' + e.Message,2);
+  end;
 end;
 // Login ermitteln
 function CheckLogin_Intern: TJSONObject;
 var
   sUser, sPass: String;
 begin
+try
   joResponseJSON:= nil;
   joResponseJSONData:= nil;
   jaDetails:= nil;
@@ -628,34 +634,57 @@ begin
   end;
   dm_PCM.qry_Work.Close;
   Result := joResponseJSON;
+  except
+    on e:Exception do
+      WriteLog(PCM_Logname,'Checklogin:' + e.Message,2);
+  end;
 end;
 // Set Token
 function SetDeviceID_Intern(const AJSONObject: TJSONObject): TJSONObject;
 var
   iID_Benutzer: Integer;
   sToken: string;
+  sDeviceID: string;
+  iDeviceType: integer;
 begin
+  try
   iZaehler:= 0;
   joResponseJSON := nil;
   jaDetails := nil;
-//  jSonValue := nil;
   jaDetails :=  AJSONObject.GetValue<TJSONArray>('Device');
   for var JSonValue in jaDetails do
   begin
-    JSonValue.TryGetValue<string>('Token',sToken);
+    JSonValue.TryGetValue<string>('DeviceToken',sToken);
+    JSonValue.TryGetValue<string>('DeviceID',sDeviceID);
+    JSonValue.TryGetValue<integer>('DeviceType',iDeviceType);
     JSonValue.TryGetValue<integer>('ID_Benutzer',iID_Benutzer);
-    dm_PCM.qry_Work.SQL.Text:=  'SELECT COUNT(*) as Anzahl FROM benutzer_token WHERE DeviceToken = :DeviceToken AND ID_Benutzer = :ID_Benutzer';
+
+    dm_PCM.qry_Work.SQL.Text:=  'SELECT COUNT(*) as Anzahl FROM manager_devices ' +
+                                'WHERE ID_Benutzer = :ID_Benutzer and DeviceID = :DeviceID and DeviceType = :DeviceType';
     dm_PCM.qry_Work.ParamByName('ID_Benutzer').asInteger := iID_Benutzer;
-    dm_PCM.qry_Work.ParamByName('DeviceToken').asString := sToken;
+    dm_PCM.qry_Work.ParamByName('DeviceID').asString := sDeviceID;
+    dm_PCM.qry_Work.ParamByName('DeviceType').asInteger := iDeviceType;
     dm_PCM.qry_Work.Open;
     iAnzahl:= dm_PCM.qry_Work.FieldByName('Anzahl').asInteger;
     dm_PCM.qry_Work.Close;
     if iAnzahl = 0 then
     begin
-      dm_PCM.qry_Work.SQL.Text:=  'INSERT INTO benutzer_token (ID_Benutzer,DeviceToken) Values (:ID_Benutzer,:DeviceToken)';
-        dm_PCM.qry_Work.ParamByName('DeviceToken').AsString:=sToken;
-        dm_PCM.qry_Work.ParamByName('ID_Benutzer').asInteger:=iID_Benutzer;
-        dm_PCM.qry_Work.ExecSQL;
+      dm_PCM.qry_Work.SQL.Text:=  'INSERT INTO manager_devices (ID_Benutzer,DeviceToken,DeviceID,DeviceType' +
+                                              ') Values (:ID_Benutzer,:DeviceToken,:DeviceID,:DeviceType)';
+      dm_PCM.qry_Work.ParamByName('ID_Benutzer').asInteger := iID_Benutzer;
+      dm_PCM.qry_Work.ParamByName('DeviceToken').asString := sToken;
+      dm_PCM.qry_Work.ParamByName('DeviceID').asString := sDeviceID;
+      dm_PCM.qry_Work.ParamByName('DeviceType').asInteger := iDeviceType;
+      dm_PCM.qry_Work.ExecSQL;
+    end
+    else begin
+      dm_PCM.qry_Work.SQL.Text:=  'Update manager_devices SET DeviceToken= :DeviceToken ' +
+                                  'WHERE ID_Benutzer = :ID_Benutzer and DeviceID = :DeviceID and DeviceType = :DeviceType';
+      dm_PCM.qry_Work.ParamByName('ID_Benutzer').asInteger := iID_Benutzer;
+      dm_PCM.qry_Work.ParamByName('DeviceToken').asString := sToken;
+      dm_PCM.qry_Work.ParamByName('DeviceID').asString := sDeviceID;
+      dm_PCM.qry_Work.ParamByName('DeviceType').asInteger := iDeviceType;
+      dm_PCM.qry_Work.ExecSQL;
     end;
   end;
   if not Assigned(joResponseJSON) then
@@ -665,6 +694,10 @@ begin
   joResponseJSON.AddPair(TJSONPair.Create('Errormessage',TJSONString.Create('')));
   WriteLog(PCM_Logname,rs_PCMAPPServer_Tokenpruefung,0);
   Result := joResponseJSON;
+  except
+    on e:Exception do
+      WriteLog(PCM_Logname,'SeDevice:' + e.Message,2);
+  end;
 end;
 {$EndRegion Server_Login}
 // Kontakte
@@ -783,7 +816,6 @@ begin
   iZaehler:= 0;
   joResponseJSON := nil;
   jaDetails := nil;
-//  jSonValue := nil;
   jaDetails :=  AJSONObject.GetValue<TJSONArray>('Contacts');
   for var JSonValue in jaDetails do
   begin
@@ -828,6 +860,7 @@ begin
       dm_PCM.qry_Work.ParamByName('ID').asInteger := iID_Kontakt;
       dm_PCM.qry_Work.ParamByName('ID_Benutzer').asInteger:= StrToInt(AID_Benutzer);
       dm_PCM.qry_Work.Open;
+      iSyncID:=dm_PCM.qry_Work.FieldByName('ID').AsInteger;
       // ID's ermitteln
       iID_Anrede:= -1;
       iID_Geschlecht:= -1;
@@ -860,7 +893,7 @@ begin
         iID_Konfession:= GetIDFromTable('manager_Konfession',sKonfession);
       end;
       // Prüfen ob Kontakt schon vorhanden
-      if dm_PCM.qry_Work.RecordCount = 0 then
+      if (dm_PCM.qry_Work.RecordCount = 0) or (iSyncID = 0) then
       begin
         if StrToDate(sGeburtsdatum) = StrToDate('30.12.1899')then
         begin
@@ -901,7 +934,7 @@ begin
         dm_PCM.qry_Work.ExecSQL;
       end
       else begin
-        iSyncID:=dm_PCM.qry_Work.FieldByName('ID').AsInteger;
+
         if (StrToDate(sGeburtsdatum) <> StrToDate('30.12.1899')) and (sGeburtsdatum <> '')  then UpdateFieldValues_TDate('Geburtsdatum','manager_Kontakte',StrToDate(sGeburtsdatum),iSyncID);
         if sVorname <> '' then	UpdateFieldValues_String('Vorname','manager_Kontakte',sVorname,iSyncID);
         if sNachname <> '' then UpdateFieldValues_String('Nachname','manager_Kontakte',sNachname,iSyncID);
@@ -1018,24 +1051,24 @@ function SetKalender_Intern(AID_Benutzer: string; const AJSONObject: TJSONObject
              AddZeros(IntToStr(wStunde), 2) + ':' + AddZeros(IntToStr(wMinute), 2) +':' + AddZeros(IntToStr(wSekunde), 2)
   end;
 var
-  iID: integer;
-  sCaption: String;
-  iEventType: integer;
-  sLocation: String;
-  sMessage: String;
-  sStartDate: String;
-  sFinishDate: String;
-  bCompleteDay: boolean;
-  bReminder: boolean;
-  sReminderDate: string;
-  iReminderMinutesBeforeStart: integer;
-  sKalendername: string;
-  iID_Kalender: integer;
-  bDeleted: boolean;
-  iLabelColor,iFontColor: integer;
-  sStart: String;
-  sFinish: String;
-  sReccurrencetext: String;
+  iIDCal: integer;
+  sCaptionCal: String;
+  iEventTypeCal: integer;
+  sLocationCal: String;
+  sMessageCal: String;
+  sStartDateCal: String;
+  sFinishDateCal: String;
+  bCompleteDayCal: boolean;
+  bReminderCal: boolean;
+  sReminderDateCal: string;
+  iReminderMinutesBeforeStartCal: integer;
+  sKalendernameCal: string;
+  iID_KalenderCal: integer;
+  bDeletedCal: boolean;
+  iLabelColorCal,iFontColorCal: integer;
+  sStartCal: String;
+  sFinishCal: String;
+  sReccurrencetextCal: String;
   iSyncID: integer;
 begin
   joResponseJSON := nil;
@@ -1044,43 +1077,45 @@ begin
   jaDetails :=  AJSONObject.GetValue<TJSONArray>('Calendar');
   for var JSonValue in jaDetails do
   begin
-    JSonValue.TryGetValue<integer>('ID',iID);
-    JSonValue.TryGetValue<integer>('EventType',iEventType);
-    JSonValue.TryGetValue<string>('Caption',sCaption);
-    JSonValue.TryGetValue<string>('Location',sLocation);
-    JSonValue.TryGetValue<string>('Message',sMessage);
-    JSonValue.TryGetValue<string>('Start',sStartDate);
-    JSonValue.TryGetValue<string>('Finish',sFinishDate);
-    JSonValue.TryGetValue<boolean>('CompleteDay',bCompleteDay);
-    JSonValue.TryGetValue<boolean>('Reminder',bReminder);
-    JSonValue.TryGetValue<string>('Reminderdate',sReminderDate);
-    JSonValue.TryGetValue<integer>('Reminderbeforestart',iReminderMinutesBeforeStart);
-    JSonValue.TryGetValue<string>('Calendername',sKalendername);
-    JSonValue.TryGetValue<integer>('ID_Calender,',iID_Kalender);
-    JSonValue.TryGetValue<string>('Reccurrencetext',sReccurrencetext);
-    JSonValue.TryGetValue<boolean>('Deleted',bDeleted);
+    JSonValue.TryGetValue<integer>('ID',iID_KalenderCal);
+    JSonValue.TryGetValue<integer>('EventType',iEventTypeCal);
+    JSonValue.TryGetValue<string>('Caption',sCaptionCal);
+    JSonValue.TryGetValue<string>('Location',sLocationCal);
+    JSonValue.TryGetValue<string>('Message',sMessageCal);
+    JSonValue.TryGetValue<string>('Start',sStartDateCal);
+    JSonValue.TryGetValue<string>('Finish',sFinishDateCal);
+    JSonValue.TryGetValue<boolean>('CompleteDay',bCompleteDayCal);
+    JSonValue.TryGetValue<boolean>('Reminder',bReminderCal);
+    JSonValue.TryGetValue<string>('ReminderDate',sReminderDateCal);
+    JSonValue.TryGetValue<integer>('ReminderBeforeStart',iReminderMinutesBeforeStartCal);
+    JSonValue.TryGetValue<string>('Calendername',sKalendernameCal);
+    JSonValue.TryGetValue<integer>('ID_Calendar,',iIDCal);
+//    TryGetValue<integer>('ID_Calendar,',iID_KalenderCal);
+    JSonValue.TryGetValue<string>('Reccurrencetext',sReccurrencetextCal);
+    JSonValue.TryGetValue<boolean>('Deleted',bDeletedCal);
+
     // Kalender löschen
-    if bDeleted then
+    if bDeletedCal then
     begin
       dm_PCM.qry_Work.SQL.Text :=  'DELETE FROM manager_kalender WHERE ID = :ID';
-      dm_PCM.qry_Work.ParamByName('ID').AsInteger := iID_Kalender;
+      dm_PCM.qry_Work.ParamByName('ID').AsInteger := iID_KalenderCal;
       dm_PCM.qry_Work.ExecSQL;
     end
     else
     begin
       // Check neue Datensatz
       dm_PCM.qry_Work.SQL.Text:=  'SELECT ID,LabelColor,FontColor FROM manager_kalender WHERE ID = :ID_Kalender';
-      dm_PCM.qry_Work.ParamByName('ID_Kalender').asInteger := iID_Kalender;
+      dm_PCM.qry_Work.ParamByName('ID_Kalender').asInteger := iID_KalenderCal;
       dm_PCM.qry_Work.Open;
       if dm_PCM.qry_Work.RecordCount = 0 then
       begin
-        sStart:= FormatDateTimeToStr(StrToDateTime(sStartDate));
-        sFinish:=FormatDateTimeToStr(StrToDateTime(sFinishDate));
+        sStartCal:= FormatDateTimeToStr(StrToDateTime(sStartDateCal));
+        sFinishCal:=FormatDateTimeToStr(StrToDateTime(sFinishDateCal));
         dm_PCM.qry_Work.SQL.Text:=  'SELECT ID,LabelColor,FontColor  FROM manager_kalender WHERE ' +
                                     'Caption = :Caption and START = :Start and Finish = :Finish';
-        dm_PCM.qry_Work.ParamByName('Caption').asString := sCaption;
-        dm_PCM.qry_Work.ParamByName('Start').asDateTime := StrToDateTime(sStartDate);
-        dm_PCM.qry_Work.ParamByName('Finish').asDateTime := StrToDateTime(sFinishDate);
+        dm_PCM.qry_Work.ParamByName('Caption').asString := sCaptionCal;
+        dm_PCM.qry_Work.ParamByName('Start').asDateTime := StrToDateTime(sStartDateCal);
+        dm_PCM.qry_Work.ParamByName('Finish').asDateTime := StrToDateTime(sFinishDateCal);
         dm_PCM.qry_Work.Open;
         if dm_PCM.qry_Work.RecordCount = 0 then
         begin
@@ -1089,217 +1124,217 @@ begin
                                      'ID_Benutzer,Kalendername,LabelColor,FontColor,ID_KalenderAPP) VALUES (:Caption,:EventType,' +
                                      ':Location,:Message,:START,:Finish,:CompleteDay,:Reminder,:ReminderDate,' +
                                      ':ReminderMinutesBeforeStart,:ID_Benutzer,:Kalendername,:LabelColor,:FontColor,:ID_KalenderAPP)';
-          dm_PCM.qry_Work.ParamByName('Caption').AsString:= sCaption;
-          dm_PCM.qry_Work.ParamByName('EventType').AsInteger:= iEventType;
-          dm_PCM.qry_Work.ParamByName('Location').AsString:= sLocation;
-          dm_PCM.qry_Work.ParamByName('Message').AsString:= sMessage;
-          dm_PCM.qry_Work.ParamByName('START').asDateTime:= StrToDateTime(sStartDate);
-          dm_PCM.qry_Work.ParamByName('Finish').asDateTime:= StrToDateTime(sFinishDate);
-          dm_PCM.qry_Work.ParamByName('ID_KalenderAPP').asInteger:= iID;
-          if bCompleteDay then
+          dm_PCM.qry_Work.ParamByName('Caption').AsString:= sCaptionCal;
+          dm_PCM.qry_Work.ParamByName('EventType').AsInteger:= iEventTypeCal;
+          dm_PCM.qry_Work.ParamByName('Location').AsString:= sLocationCal;
+          dm_PCM.qry_Work.ParamByName('Message').AsString:= sMessageCal;
+          dm_PCM.qry_Work.ParamByName('START').asDateTime:= StrToDateTime(sStartDateCal);
+          dm_PCM.qry_Work.ParamByName('Finish').asDateTime:= StrToDateTime(sFinishDateCal);
+          dm_PCM.qry_Work.ParamByName('ID_KalenderAPP').asInteger:= iIDCal;
+          if bCompleteDayCal then
             dm_PCM.qry_Work.ParamByName('CompleteDay').AsString:= 'true'
           else
             dm_PCM.qry_Work.ParamByName('CompleteDay').AsString:= 'false';
-          if bReminder then
+          if bReminderCal then
             dm_PCM.qry_Work.ParamByName('Reminder').AsString:= 'true'
           else
             dm_PCM.qry_Work.ParamByName('Reminder').AsString:= 'false';
-          if (bReminder) and (sReminderDate = '') then
-            sReminderDate := DateTimeToStr(IncMinute(StrToDateTime(sStartDate),-iReminderMinutesBeforeStart));
-          dm_PCM.qry_Work.ParamByName('ReminderDate').asDateTime:= StrToDateTime(sReminderDate);
-          dm_PCM.qry_Work.ParamByName('ReminderMinutesBeforeStart').AsInteger:= iReminderMinutesBeforeStart;
+          if (bReminderCal) and (sReminderDateCal = '') then
+            sReminderDateCal := DateTimeToStr(IncMinute(StrToDateTime(sStartDateCal),-iReminderMinutesBeforeStartCal));
+          dm_PCM.qry_Work.ParamByName('ReminderDate').asDateTime:= StrToDateTime(sReminderDateCal);
+          dm_PCM.qry_Work.ParamByName('ReminderMinutesBeforeStart').AsInteger:= iReminderMinutesBeforeStartCal;
           dm_PCM.qry_Work.ParamByName('ID_Benutzer').AsInteger:= StrToInt(AID_Benutzer);
-          dm_PCM.qry_Work.ParamByName('Kalendername').AsString:= sKalendername;
+          dm_PCM.qry_Work.ParamByName('Kalendername').AsString:= sKalendernameCal;
           dm_PCM.qry_Work.ParamByName('LabelColor').AsInteger:= 13083265;
           dm_PCM.qry_Work.ParamByName('FontColor').AsInteger:= 0;
           dm_PCM.qry_Work.ExecSQL;
         end
         else begin
           iSyncID:= dm_PCM.qry_Work.FieldByName('ID').asInteger;
-          iFontColor:= dm_PCM.qry_Work.FieldByName('FontColor').AsInteger;
-          iLabelColor:= dm_PCM.qry_Work.FieldByName('LabelColor').AsInteger;
-          if sCaption <> '' then UpdateFieldValues_String('Caption','manager_Kalender',sCaption,iSyncID);
-          if iEventType <> -1 then UpdateFieldValues_Integer('EventType','manager_Kalender',iEventType,iSyncID);
-          if sLocation <> '' then UpdateFieldValues_String('Location','manager_Kalender',sLocation,iSyncID);
-          if sMessage <> ''  then UpdateFieldValues_String('Message','manager_Kalender',sMessage,iSyncID);
-          if sStartDate <> ''  then UpdateFieldValues_TDateTime('Start','manager_Kalender',StrToDateTime(sStartDate),iSyncID);
-          if sFinishDate <> ''  then UpdateFieldValues_TDateTime('Finish','manager_Kalender',StrToDateTime(sFinishDate),iSyncID);
-          if iID <> -1 then UpdateFieldValues_Integer('ID_KalenderApp','manager_Kalender',iID,iSyncID);
-          if bCompleteDay then UpdateFieldValues_String('CompleteDay','manager_Kalender','True',iSyncID) else UpdateFieldValues_String('CompleteDay','manager_Kalender','False',iSyncID);
-          if bReminder then UpdateFieldValues_String('Reminder','manager_Kalender','True',iSyncID) else UpdateFieldValues_String('Reminder','manager_Kalender','False',iSyncID);
-          if iReminderMinutesBeforeStart <> 0 then UpdateFieldValues_integer('ReminderMinutesBeforeStart','manager_Kalender',iReminderMinutesBeforeStart,iSyncID);
-          if sReminderDate <> ''  then UpdateFieldValues_TDateTime('ReminderDate','manager_Kalender',StrToDateTime(sReminderDate),iSyncID);
-          if sKalendername <> '' then UpdateFieldValues_String('Kalendername','manager_Kalender',sKalendername,iSyncID);
+          iFontColorCal:= dm_PCM.qry_Work.FieldByName('FontColor').AsInteger;
+          iLabelColorCal:= dm_PCM.qry_Work.FieldByName('LabelColor').AsInteger;
+          if sCaptionCal <> '' then UpdateFieldValues_String('Caption','manager_Kalender',sCaptionCal,iSyncID);
+          if iEventTypeCal <> -1 then UpdateFieldValues_Integer('EventType','manager_Kalender',iEventTypeCal,iSyncID);
+          if sLocationCal <> '' then UpdateFieldValues_String('Location','manager_Kalender',sLocationCal,iSyncID);
+          if sMessageCal <> ''  then UpdateFieldValues_String('Message','manager_Kalender',sMessageCal,iSyncID);
+          if sStartDateCal <> ''  then UpdateFieldValues_TDateTime('Start','manager_Kalender',StrToDateTime(sStartDateCal),iSyncID);
+          if sFinishDateCal <> ''  then UpdateFieldValues_TDateTime('Finish','manager_Kalender',StrToDateTime(sFinishDateCal),iSyncID);
+          if iIDCal <> -1 then UpdateFieldValues_Integer('ID_KalenderApp','manager_Kalender',iIDCal,iSyncID);
+          if bCompleteDayCal then UpdateFieldValues_String('CompleteDay','manager_Kalender','True',iSyncID) else UpdateFieldValues_String('CompleteDay','manager_Kalender','False',iSyncID);
+          if bReminderCal then UpdateFieldValues_String('Reminder','manager_Kalender','True',iSyncID) else UpdateFieldValues_String('Reminder','manager_Kalender','False',iSyncID);
+          if iReminderMinutesBeforeStartCal <> 0 then UpdateFieldValues_integer('ReminderMinutesBeforeStart','manager_Kalender',iReminderMinutesBeforeStartCal,iSyncID);
+          if sReminderDateCal <> ''  then UpdateFieldValues_TDateTime('ReminderDate','manager_Kalender',StrToDateTime(sReminderDateCal),iSyncID);
+          if sKalendernameCal <> '' then UpdateFieldValues_String('Kalendername','manager_Kalender',sKalendernameCal,iSyncID);
           UpdateFieldValues_Integer('Typ','manager_Kalender',2,iSyncID);
-          case AnsiIndexStr(sCaption, ['Biomüll', 'Restmüll','Papier','Gelber Sack','Giftmobil']) of
+          case AnsiIndexStr(sCaptionCal, ['Biomüll', 'Restmüll','Papier','Gelber Sack','Giftmobil']) of
             // BioMüll
             0:
             begin
-              iFontColor:= clWhite;
-              iLabelColor := 944838;
+              iFontColorCal:= clWhite;
+              iLabelColorCal := 944838;
             end;
             // RestMüll
             1:
             begin
-              iFontColor:= clWhite;
-              iLabelColor := 5658199;
+              iFontColorCal:= clWhite;
+              iLabelColorCal := 5658199;
             end;
             // Papier
             2:
             begin
-              iFontColor:= clWhite;
-              iLabelColor := 13214474;
+              iFontColorCal:= clWhite;
+              iLabelColorCal := 13214474;
             end;
             // Gelber Sack
             3:
             begin
-              iFontColor:= clBlack;
-              iLabelColor := 56831;
+              iFontColorCal:= clBlack;
+              iLabelColorCal := 56831;
             end;
             // Giftmobil
             4:
             begin
-              iFontColor:= clWhite;
-              iLabelColor := 7679146;
+              iFontColorCal:= clWhite;
+              iLabelColorCal := 7679146;
             end;
           end;
-          if Pos('Geburtstag',sCaption) > 0 then
+          if Pos('Geburtstag',sCaptionCal) > 0 then
           begin
-            iFontColor:= 0;
-            iLabelColor := 8421376;
+            iFontColorCal:= 0;
+            iLabelColorCal := 8421376;
           end;
-          if (Pos('ganzer Krankheitstag',sCaption) > 0) or (Pos('halber Krankheitstag',sCaption) > 0) then
+          if (Pos('ganzer Krankheitstag',sCaptionCal) > 0) or (Pos('halber Krankheitstag',sCaptionCal) > 0) then
           begin
-            iFontColor:= 0;
-            iLabelColor:= 8421631
+            iFontColorCal:= 0;
+            iLabelColorCal:= 8421631
           end;
-          if (Pos('ganzer Urlaubstag',sCaption) > 0) or (Pos('halber Urlaubstag',sCaption) > 0) then
+          if (Pos('ganzer Urlaubstag',sCaptionCal) > 0) or (Pos('halber Urlaubstag',sCaptionCal) > 0) then
           begin
-            iFontColor:= 0;
-            iLabelColor:= 16776960;
+            iFontColorCal:= 0;
+            iLabelColorCal:= 16776960;
           end;
 
-          if Pos('Arbeitszeit',sCaption) > 0 then
+          if Pos('Arbeitszeit',sCaptionCal) > 0 then
           begin
-            iFontColor:= 0;
-            iLabelColor := 8453888;
+            iFontColorCal:= 0;
+            iLabelColorCal := 8453888;
           end;
-          if Pos('Pause',sCaption) > 0 then
+          if Pos('Pause',sCaptionCal) > 0 then
           begin
-            iFontColor:= 0;
-            iLabelColor := 12632256
+            iFontColorCal:= 0;
+            iLabelColorCal := 12632256
           end;
-          if sLocation = 'Feiertag' then
+          if sLocationCal = 'Feiertag' then
           begin
-            iFontColor:= 0;
-            iLabelColor := 8453888;
+            iFontColorCal:= 0;
+            iLabelColorCal := 8453888;
           end;
-          if sLocation = 'Ferien' then
+          if sLocationCal = 'Ferien' then
           begin
-            iFontColor:= 0;
-            iLabelColor := 8453888;
+            iFontColorCal:= 0;
+            iLabelColorCal := 8453888;
           end;
-          if sLocation = 'Kita' then
+          if sLocationCal = 'Kita' then
           begin
-            iFontColor:= 0;
-            iLabelColor := 8453888;
+            iFontColorCal:= 0;
+            iLabelColorCal := 8453888;
           end;
-          UpdateFieldValues_Integer('LabelColor','manager_kalender',iLabelColor,iSyncID);
-          UpdateFieldValues_Integer('FontColor','manager_kalender',iFontColor,iSyncID);
+          UpdateFieldValues_Integer('LabelColor','manager_kalender',iLabelColorCal,iSyncID);
+          UpdateFieldValues_Integer('FontColor','manager_kalender',iFontColorCal,iSyncID);
         end;
       end
       else begin
        iSyncID:= dm_PCM.qry_Work.FieldByName('ID').asInteger;
-        iFontColor:= dm_PCM.qry_Work.FieldByName('FontColor').AsInteger;
-        iLabelColor:= dm_PCM.qry_Work.FieldByName('LabelColor').AsInteger;
-        if sCaption <> '' then UpdateFieldValues_String('Caption','manager_Kalender',sCaption,iSyncID);
-        if iEventType <> -1 then UpdateFieldValues_Integer('EventType','manager_Kalender',iEventType,iSyncID);
-        if sLocation <> '' then UpdateFieldValues_String('Location','manager_Kalender',sLocation,iSyncID);
-        if sMessage <> ''  then UpdateFieldValues_String('Message','manager_Kalender',sMessage,iSyncID);
-        if sStartDate <> ''  then UpdateFieldValues_TDateTime('Start','manager_Kalender',StrToDateTime(sStartDate),iSyncID);
-        if sFinishDate <> ''  then UpdateFieldValues_TDateTime('Finish','manager_Kalender',StrToDateTime(sFinishDate),iSyncID);
-        if iID <> -1 then UpdateFieldValues_Integer('ID_KalenderApp','manager_Kalender',iID,iSyncID);
-        if bCompleteDay then UpdateFieldValues_String('CompleteDay','manager_Kalender','True',iSyncID) else UpdateFieldValues_String('CompleteDay','manager_Kalender','False',iSyncID);
-        if bReminder then UpdateFieldValues_String('Reminder','manager_Kalender','True',iSyncID) else UpdateFieldValues_String('Reminder','manager_Kalender','False',iSyncID);
-        if iReminderMinutesBeforeStart <> 0 then UpdateFieldValues_integer('ReminderMinutesBeforeStart','manager_Kalender',iReminderMinutesBeforeStart,iSyncID);
-        if sReminderDate <> ''  then UpdateFieldValues_TDateTime('ReminderDate','manager_Kalender',StrToDateTime(sReminderDate),iSyncID);
-        if sKalendername <> '' then UpdateFieldValues_String('Kalendername','manager_Kalender',sKalendername,iSyncID);
+        iFontColorCal:= dm_PCM.qry_Work.FieldByName('FontColor').AsInteger;
+        iLabelColorCal:= dm_PCM.qry_Work.FieldByName('LabelColor').AsInteger;
+        if sCaptionCal <> '' then UpdateFieldValues_String('Caption','manager_Kalender',sCaptionCal,iSyncID);
+        if iEventTypeCal <> -1 then UpdateFieldValues_Integer('EventType','manager_Kalender',iEventTypeCal,iSyncID);
+        if sLocationCal <> '' then UpdateFieldValues_String('Location','manager_Kalender',sLocationCal,iSyncID);
+        if sMessageCal <> ''  then UpdateFieldValues_String('Message','manager_Kalender',sMessageCal,iSyncID);
+        if sStartDateCal <> ''  then UpdateFieldValues_TDateTime('Start','manager_Kalender',StrToDateTime(sStartDateCal),iSyncID);
+        if sFinishDateCal <> ''  then UpdateFieldValues_TDateTime('Finish','manager_Kalender',StrToDateTime(sFinishDateCal),iSyncID);
+        if iIDCal <> -1 then UpdateFieldValues_Integer('ID_KalenderApp','manager_Kalender',iIDCal,iSyncID);
+        if bCompleteDayCal then UpdateFieldValues_String('CompleteDay','manager_Kalender','True',iSyncID) else UpdateFieldValues_String('CompleteDay','manager_Kalender','False',iSyncID);
+        if bReminderCal then UpdateFieldValues_String('Reminder','manager_Kalender','True',iSyncID) else UpdateFieldValues_String('Reminder','manager_Kalender','False',iSyncID);
+        if iReminderMinutesBeforeStartCal <> 0 then UpdateFieldValues_integer('ReminderMinutesBeforeStart','manager_Kalender',iReminderMinutesBeforeStartCal,iSyncID);
+        if sReminderDateCal <> ''  then UpdateFieldValues_TDateTime('ReminderDate','manager_Kalender',StrToDateTime(sReminderDateCal),iSyncID);
+        if sKalendernameCal <> '' then UpdateFieldValues_String('Kalendername','manager_Kalender',sKalendernameCal,iSyncID);
         UpdateFieldValues_Integer('Typ','manager_Kalender',2,iSyncID);
-        case AnsiIndexStr(sCaption, ['Biomüll', 'Restmüll','Papier','Gelber Sack','Giftmobil']) of
+        case AnsiIndexStr(sCaptionCal, ['Biomüll', 'Restmüll','Papier','Gelber Sack','Giftmobil']) of
           // BioMüll
           0:
           begin
-            iFontColor:= clWhite;
-            iLabelColor := 944838;
+            iFontColorCal:= clWhite;
+            iLabelColorCal := 944838;
           end;
           // RestMüll
           1:
           begin
-            iFontColor:= clWhite;
-            iLabelColor := 5658199;
+            iFontColorCal:= clWhite;
+            iLabelColorCal := 5658199;
           end;
           // Papier
           2:
           begin
-            iFontColor:= clWhite;
-            iLabelColor := 13214474;
+            iFontColorCal:= clWhite;
+            iLabelColorCal := 13214474;
           end;
           // Gelber Sack
           3:
           begin
-            iFontColor:= clBlack;
-            iLabelColor := 56831;
+            iFontColorCal:= clBlack;
+            iLabelColorCal := 56831;
           end;
           // Giftmobil
           4:
           begin
-            iFontColor:= clWhite;
-            iLabelColor := 7679146;
+            iFontColorCal:= clWhite;
+            iLabelColorCal := 7679146;
           end;
         end;
-        if Pos('Geburtstag',sCaption) > 0 then
+        if Pos('Geburtstag',sCaptionCal) > 0 then
         begin
-          iFontColor:= 0;
-          iLabelColor := 8421376;
+          iFontColorCal:= 0;
+          iLabelColorCal := 8421376;
         end;
-        if (Pos('ganzer Krankheitstag',sCaption) > 0) or (Pos('halber Krankheitstag',sCaption) > 0) then
+        if (Pos('ganzer Krankheitstag',sCaptionCal) > 0) or (Pos('halber Krankheitstag',sCaptionCal) > 0) then
         begin
-          iFontColor:= 0;
-          iLabelColor:= 8421631
+          iFontColorCal:= 0;
+          iLabelColorCal:= 8421631
         end;
-        if (Pos('ganzer Urlaubstag',sCaption) > 0) or (Pos('halber Urlaubstag',sCaption) > 0) then
+        if (Pos('ganzer Urlaubstag',sCaptionCal) > 0) or (Pos('halber Urlaubstag',sCaptionCal) > 0) then
         begin
-          iFontColor:= 0;
-          iLabelColor:= 16776960;
+          iFontColorCal:= 0;
+          iLabelColorCal:= 16776960;
         end;
 
-        if Pos('Arbeitszeit',sCaption) > 0 then
+        if Pos('Arbeitszeit',sCaptionCal) > 0 then
         begin
-          iFontColor:= 0;
-          iLabelColor := 8453888;
+          iFontColorCal:= 0;
+          iLabelColorCal := 8453888;
         end;
-        if Pos('Pause',sCaption) > 0 then
+        if Pos('Pause',sCaptionCal) > 0 then
         begin
-          iFontColor:= 0;
-          iLabelColor := 12632256
+          iFontColorCal:= 0;
+          iLabelColorCal := 12632256
         end;
-        if sLocation = 'Feiertag' then
+        if sLocationCal = 'Feiertag' then
         begin
-          iFontColor:= 0;
-          iLabelColor := 8453888;
+          iFontColorCal:= 0;
+          iLabelColorCal := 8453888;
         end;
-        if sLocation = 'Ferien' then
+        if sLocationCal = 'Ferien' then
         begin
-          iFontColor:= 0;
-          iLabelColor := 8453888;
+          iFontColorCal:= 0;
+          iLabelColorCal := 8453888;
         end;
-        if sLocation = 'Kita' then
+        if sLocationCal = 'Kita' then
         begin
-          iFontColor:= 0;
-          iLabelColor := 8453888;
+          iFontColorCal:= 0;
+          iLabelColorCal := 8453888;
         end;
-        UpdateFieldValues_Integer('LabelColor','manager_kalender',iLabelColor,iSyncID);
-        UpdateFieldValues_Integer('FontColor','manager_kalender',iFontColor,iSyncID);
+        UpdateFieldValues_Integer('LabelColor','manager_kalender',iLabelColorCal,iSyncID);
+        UpdateFieldValues_Integer('FontColor','manager_kalender',iFontColorCal,iSyncID);
       end;
     end;
   end;
@@ -1383,25 +1418,25 @@ end;
 // Passwörter übernehmen
 function SetPasswoerter_Intern(AID_Benutzer: string; const AJSONObject: TJSONObject): TJSONObject;
 var
-  iID,iID_Typ: integer;
-  sPasswordname: String;
-  sUser: String;
-  sPassword: String;
-  sLink: String;
-  sVPN_SharedSecret: string;
-  sAPP_IP: string;
-  iAPP_Port: integer;
-  sAPP_Encryption: string;
-  sIncomingmail_Server: string;
-  iIncomingmail_Port: integer;
-  sIncomingmail_Encryption: string;
-  sOutgoingmail_Server: string;
-  iOutgoingmail_Port: integer;
-  sOutgoingmail_Encryption: string;
-  sPasswordtype: string;
-  sWlankey:String;
-  iID_Password: integer;
-  bDeleted: boolean;
+  iIDPWD,iID_TypPWD: integer;
+  sPasswordnamePWD: String;
+  sUserPWD: String;
+  sPasswordPWD: String;
+  sLinkPWD: String;
+  sVPN_SharedSecretPWD: string;
+  sAPP_IPPWD: string;
+  iAPP_PortPWD: integer;
+  sAPP_EncryptionPWD: string;
+  sIncomingmail_ServerPWD: string;
+  iIncomingmail_PortPWD: integer;
+  sIncomingmail_EncryptionPWD: string;
+  sOutgoingmail_ServerPWD: string;
+  iOutgoingmail_PortPWD: integer;
+  sOutgoingmail_EncryptionPWD: string;
+  sPasswordtypePWD: string;
+  sWlankeyPWD:String;
+  iID_PasswordPWD: integer;
+  bDeletedPWD: boolean;
   iSyncID: integer;
 begin
   joResponseJSON := nil;
@@ -1410,43 +1445,43 @@ begin
   jaDetails :=  AJSONObject.GetValue<TJSONArray>('Passwords');
   for var JSonValue in jaDetails do
   begin
-    JSonValue.TryGetValue<integer>('ID',iID);
-    JSonValue.TryGetValue<string>('Passwordname',sPasswordname);
-    JSonValue.TryGetValue<string>('User',sUser);
-    JSonValue.TryGetValue<string>('Password',sPassword);
-    JSonValue.TryGetValue<string>('Link',sLink);
-    JSonValue.TryGetValue<string>('VPN_SharedSecret',sVPN_SharedSecret);
-    JSonValue.TryGetValue<string>('APP_IP',sAPP_IP);
-    JSonValue.TryGetValue<integer>('APP_Port',iAPP_Port);
-    JSonValue.TryGetValue<string>('APP_Encryption',sAPP_Encryption);
-    JSonValue.TryGetValue<string>('Incomingmail_Server',sIncomingmail_Server);
-    JSonValue.TryGetValue<integer>('Incomingmail_Port',iIncomingmail_Port);
-    JSonValue.TryGetValue<string>('Incomingmail_Encryption', sIncomingmail_Encryption);
-    JSonValue.TryGetValue<string>('Outgoingmail_Server',sOutgoingmail_Server);
-    JSonValue.TryGetValue<integer>('Outgoingmail_Port',iOutgoingmail_Port);
-    JSonValue.TryGetValue<string>('Outgoingmail_Encryption', sOutgoingmail_Encryption);
-    JSonValue.TryGetValue<string>('Passwordtype',sPasswordtype);
-    JSonValue.TryGetValue<string>('Wlankey',sWlankey);
-    JSonValue.TryGetValue<integer>('ID_Password',iID_Password);
-    JSonValue.TryGetValue<boolean>('Deleted',bDeleted);
-    if bDeleted then
+    JSonValue.TryGetValue<integer>('ID',iIDPWD);
+    JSonValue.TryGetValue<string>('Passwordname',sPasswordnamePWD);
+    JSonValue.TryGetValue<string>('User',sUserPWD);
+    JSonValue.TryGetValue<string>('Password',sPasswordPWD);
+    JSonValue.TryGetValue<string>('Link',sLinkPWD);
+    JSonValue.TryGetValue<string>('VPN_SharedSecret',sVPN_SharedSecretPWD);
+    JSonValue.TryGetValue<string>('APP_IP',sAPP_IPPWD);
+    JSonValue.TryGetValue<integer>('APP_Port',iAPP_PortPWD);
+    JSonValue.TryGetValue<string>('APP_Encryption',sAPP_EncryptionPWD);
+    JSonValue.TryGetValue<string>('Incomingmail_Server',sIncomingmail_ServerPWD);
+    JSonValue.TryGetValue<integer>('Incomingmail_Port',iIncomingmail_PortPWD);
+    JSonValue.TryGetValue<string>('Incomingmail_Encryption', sIncomingmail_EncryptionPWD);
+    JSonValue.TryGetValue<string>('Outgoingmail_Server',sOutgoingmail_ServerPWD);
+    JSonValue.TryGetValue<integer>('Outgoingmail_Port',iOutgoingmail_PortPWD);
+    JSonValue.TryGetValue<string>('Outgoingmail_Encryption', sOutgoingmail_EncryptionPWD);
+    JSonValue.TryGetValue<string>('Passwordtype',sPasswordtypePWD);
+    JSonValue.TryGetValue<string>('Wlankey',sWlankeyPWD);
+    JSonValue.TryGetValue<integer>('ID_Password',iID_PasswordPWD);
+    JSonValue.TryGetValue<boolean>('Deleted',bDeletedPWD);
+    if bDeletedPWD then
     begin
       dm_PCM.qry_Work.SQL.Text:=  'Delete FROM manager_passwoerter WHERE ID = :ID';
-      dm_PCM.qry_Work.ParamByName('ID').asInteger := iID_Password;
+      dm_PCM.qry_Work.ParamByName('ID').asInteger := iID_PasswordPWD;
       dm_PCM.qry_Work.ExecSQL;
     end
     else
     begin
       // Check neue Datensatz
       dm_PCM.qry_Work.SQL.Text:=  'SELECT ID FROM manager_passwoerter WHERE ID = :ID';
-      dm_PCM.qry_Work.ParamByName('ID').asInteger := iID_Password;
-
+      dm_PCM.qry_Work.ParamByName('ID').asInteger := iID_PasswordPWD;
       dm_PCM.qry_Work.Open;
-      iID_Typ:= -1;
+      iSyncID:= dm_PCM.qry_Work.FieldByName('ID').AsInteger;
+      iID_TypPWD:= -1;
       // Typ
-      if sPasswordtype <> '' then
+      if sPasswordtypePWD <> '' then
       begin
-        iID_Typ:= GetIDFromTable('manager_passwoerter_typ',sPasswordtype);
+        iID_TypPWD:= GetIDFromTable('manager_passwoerter_typ',sPasswordtypePWD);
       end;
       if dm_PCM.qry_Work.RecordCount = 0 then
       begin
@@ -1458,44 +1493,43 @@ begin
 											 ':APP_Verschluesselung,:MAIL_Posteingangsserver,:MAIL_PosteingangsPort,' +
 											 ':MAIL_PosteingangsVerschluesselung,:MAIL_Postausgangsserver,:MAIL_PostausgangsPort,' +
 											 ':MAIL_PostausgangsVerschluesselung,:ID_Typ,:WLAN)';
-        dm_PCM.qry_Work.ParamByName('Bezeichnung').asString:= sPasswordname;
-        dm_PCM.qry_Work.ParamByName('user').asString:= sUser;
-        dm_PCM.qry_Work.ParamByName('password').asString:= spassword;
-        dm_PCM.qry_Work.ParamByName('link').asString:= slink;
+        dm_PCM.qry_Work.ParamByName('Bezeichnung').asString:= sPasswordnamePWD;
+        dm_PCM.qry_Work.ParamByName('user').asString:= sUserPWD;
+        dm_PCM.qry_Work.ParamByName('password').asString:= spasswordPWD;
+        dm_PCM.qry_Work.ParamByName('link').asString:= slinkPWD;
         dm_PCM.qry_Work.ParamByName('ID_benutzer').asInteger:= StrToInt(AID_Benutzer);
-        dm_PCM.qry_Work.ParamByName('VPN_SharedSecret').asString:= sVPN_SharedSecret;
-        dm_PCM.qry_Work.ParamByName('APP_IP').asString:= sAPP_IP;
-        dm_PCM.qry_Work.ParamByName('APP_Port').asInteger:= iAPP_Port;
-        dm_PCM.qry_Work.ParamByName('APP_Verschluesselung').asString:= sAPP_Encryption;
-        dm_PCM.qry_Work.ParamByName('MAIL_Posteingangsserver').asString:= sIncomingmail_Server;
-        dm_PCM.qry_Work.ParamByName('MAIL_PosteingangsPort').asInteger:= iIncomingmail_Port;
-        dm_PCM.qry_Work.ParamByName('MAIL_PosteingangsVerschluesselung').asString:= sIncomingmail_Encryption;
-        dm_PCM.qry_Work.ParamByName('MAIL_Postausgangsserver').asString:= sOutgoingmail_Server;
-        dm_PCM.qry_Work.ParamByName('MAIL_PostausgangsPort').asInteger:= iOutgoingmail_Port;
-        dm_PCM.qry_Work.ParamByName('MAIL_PostausgangsVerschluesselung').asString:= sOutgoingmail_Encryption;
-        dm_PCM.qry_Work.ParamByName('ID_Typ').asInteger:= iID_Typ;
-        dm_PCM.qry_Work.ParamByName('WLAN').asString:= sWlankey;
+        dm_PCM.qry_Work.ParamByName('VPN_SharedSecret').asString:= sVPN_SharedSecretPWD;
+        dm_PCM.qry_Work.ParamByName('APP_IP').asString:= sAPP_IPPWD;
+        dm_PCM.qry_Work.ParamByName('APP_Port').asInteger:= iAPP_PortPWD;
+        dm_PCM.qry_Work.ParamByName('APP_Verschluesselung').asString:= sAPP_EncryptionPWD;
+        dm_PCM.qry_Work.ParamByName('MAIL_Posteingangsserver').asString:= sIncomingmail_ServerPWD;
+        dm_PCM.qry_Work.ParamByName('MAIL_PosteingangsPort').asInteger:= iIncomingmail_PortPWD;
+        dm_PCM.qry_Work.ParamByName('MAIL_PosteingangsVerschluesselung').asString:= sIncomingmail_EncryptionPWD;
+        dm_PCM.qry_Work.ParamByName('MAIL_Postausgangsserver').asString:= sOutgoingmail_ServerPWD;
+        dm_PCM.qry_Work.ParamByName('MAIL_PostausgangsPort').asInteger:= iOutgoingmail_PortPWD;
+        dm_PCM.qry_Work.ParamByName('MAIL_PostausgangsVerschluesselung').asString:= sOutgoingmail_EncryptionPWD;
+        dm_PCM.qry_Work.ParamByName('ID_Typ').asInteger:= iID_TypPWD;
+        dm_PCM.qry_Work.ParamByName('WLAN').asString:= sWlankeyPWD;
         dm_PCM.qry_Work.ExecSQL;
       end
       else
       begin
-        iSyncID:= dm_PCM.qry_Work.FieldByName('ID').AsInteger;
-        if sPasswordname <> '' then UpdateFieldValues_String('Bezeichnung','manager_passwoerter',sPasswordname,iSyncID);
-        if sUser <> '' then UpdateFieldValues_String('User','manager_passwoerter',sUser,iSyncID);
-        if sPASSWORD <> '' then UpdateFieldValues_String('PASSWORD','manager_passwoerter',sPASSWORD,iSyncID);
-        if slink <> '' then UpdateFieldValues_String('link','manager_passwoerter',slink,iSyncID);
-        if sVPN_SharedSecret <> '' then UpdateFieldValues_String('VPN_SharedSecret','manager_passwoerter',sVPN_SharedSecret,iSyncID);
-        if sAPP_IP <> '' then UpdateFieldValues_String('APP_IP','manager_passwoerter',sAPP_IP,iSyncID);
-        if IntToStr(iAPP_Port) <> '' then UpdateFieldValues_Integer('APP_Port','manager_passwoerter',iAPP_Port,iSyncID);
-        if sAPP_Encryption <> '' then UpdateFieldValues_String('APP_Verschluesselung','manager_passwoerter',sAPP_Encryption,iSyncID);
-        if sIncomingmail_Server <> '' then UpdateFieldValues_String('MAIL_Posteingangsserver','manager_passwoerter',sIncomingmail_Server,iSyncID);
-        if IntToStr(iIncomingmail_Port) <> '' then UpdateFieldValues_Integer('MAIL_PosteingangsPort','manager_passwoerter',iIncomingmail_Port,iSyncID);
-        if sIncomingmail_Encryption <> '' then UpdateFieldValues_String('MAIL_PosteingangsVerschluesselung','manager_passwoerter',sIncomingmail_Encryption,iSyncID);
-        if sOutgoingmail_Server <> '' then UpdateFieldValues_String('MAIL_Postausgangsserver','manager_passwoerter',sOutgoingmail_Server,iSyncID);
-        if IntToStr(iOutgoingmail_Port) <> '' then UpdateFieldValues_Integer('MAIL_PostausgangsPort','manager_passwoerter',iOutgoingmail_Port,iSyncID);
-        if sOutgoingmail_Encryption <> '' then UpdateFieldValues_String('MAIL_PostausgangsVerschluesselung','manager_passwoerter',sOutgoingmail_Encryption,iSyncID);
-        if sPasswordtype <> '' then UpdateFieldValues_Integer('ID_Typ','manager_passwoerter',iID_Typ,iSyncID);
-        if sWlankey <> '' then UpdateFieldValues_String('WLAN','manager_passwoerter',sWlankey,iSyncID);
+        if sPasswordnamePWD <> '' then UpdateFieldValues_String('Bezeichnung','manager_passwoerter',sPasswordnamePWD,iSyncID);
+        if sUserPWD <> '' then UpdateFieldValues_String('User','manager_passwoerter',sUserPWD,iSyncID);
+        if spasswordPWD <> '' then UpdateFieldValues_String('PASSWORD','manager_passwoerter',spasswordPWD,iSyncID);
+        if slinkPWD <> '' then UpdateFieldValues_String('link','manager_passwoerter',slinkPWD,iSyncID);
+        if sVPN_SharedSecretPWD <> '' then UpdateFieldValues_String('VPN_SharedSecret','manager_passwoerter',sVPN_SharedSecretPWD,iSyncID);
+        if sAPP_IPPWD <> '' then UpdateFieldValues_String('APP_IP','manager_passwoerter',sAPP_IPPWD,iSyncID);
+        if IntToStr(iAPP_PortPWD) <> '' then UpdateFieldValues_Integer('APP_Port','manager_passwoerter',iAPP_PortPWD,iSyncID);
+        if sAPP_EncryptionPWD <> '' then UpdateFieldValues_String('APP_Verschluesselung','manager_passwoerter',sAPP_EncryptionPWD,iSyncID);
+        if sIncomingmail_ServerPWD <> '' then UpdateFieldValues_String('MAIL_Posteingangsserver','manager_passwoerter',sIncomingmail_ServerPWD,iSyncID);
+        if IntToStr(iIncomingmail_PortPWD) <> '' then UpdateFieldValues_Integer('MAIL_PosteingangsPort','manager_passwoerter',iIncomingmail_PortPWD,iSyncID);
+        if sIncomingmail_EncryptionPWD <> '' then UpdateFieldValues_String('MAIL_PosteingangsVerschluesselung','manager_passwoerter',sIncomingmail_EncryptionPWD,iSyncID);
+        if sOutgoingmail_ServerPWD <> '' then UpdateFieldValues_String('MAIL_Postausgangsserver','manager_passwoerter',sOutgoingmail_ServerPWD,iSyncID);
+        if IntToStr(iOutgoingmail_PortPWD) <> '' then UpdateFieldValues_Integer('MAIL_PostausgangsPort','manager_passwoerter',iOutgoingmail_PortPWD,iSyncID);
+        if sOutgoingmail_EncryptionPWD <> '' then UpdateFieldValues_String('MAIL_PostausgangsVerschluesselung','manager_passwoerter',sOutgoingmail_EncryptionPWD,iSyncID);
+        if sPasswordtypePWD <> '' then UpdateFieldValues_Integer('ID_Typ','manager_passwoerter',iID_TypPWD,iSyncID);
+        if sWlankeyPWD <> '' then UpdateFieldValues_String('WLAN','manager_passwoerter',sWlankeyPWD,iSyncID);
       end;
     end;
     iZaehler:= iZaehler + 1;
@@ -1887,7 +1921,7 @@ begin
     else
     begin
       // Check neue Datensatz
-      dm_PCM.qry_Work.SQL.Text:=  'SELECT ID FROM manager_finanzen_Ausgaben WHERE Name = :Name';
+      dm_PCM.qry_Work.SQL.Text:=  'SELECT ID FROM manager_finanzen_Ausgaben WHERE ID = :ID';
       dm_PCM.qry_Work.ParamByName('ID').AsInteger := iID_Expenditure;
       dm_PCM.qry_Work.Open;
       if dm_PCM.qry_Work.RecordCount = 0 then
@@ -1919,7 +1953,7 @@ begin
         if sBankcode <> '' then UpdateFieldValues_String('Bankleitzahl','manager_finanzen_Ausgaben',sBankcode,iSyncID);
         if FloatToStr(fAmount) <> '' then UpdateFieldValues_Float('Betrag','manager_finanzen_Ausgaben',fAmount,iSyncID);
         if FloatToStr(fFixedamount) <> '' then UpdateFieldValues_Float('FixBetrag','manager_finanzen_Ausgaben',fFixedamount,iSyncID);
-        if BoolToStr(bFixedcosts) <> '' then UpdateFieldValues_Boolean('Fixkosten','manager_finanzen_Ausgaben',bFixedcosts,iSyncID);
+        if bFixedcosts then UpdateFieldValues_String('Fixkosten','manager_finanzen_Ausgaben','True',iSyncID) else UpdateFieldValues_String('Fixkosten','manager_finanzen_Ausgaben','False',iSyncID);
         if IntToStr(iValidmonth) <> '' then UpdateFieldValues_Integer('Gueltig_Monat','manager_finanzen_Ausgaben',iValidmonth,iSyncID);
         if IntToStr(iValidyear) <> '' then UpdateFieldValues_Integer('Gueltig_Jahr','manager_finanzen_Ausgaben',iValidyear,iSyncID);
         if sUSe <> ''  then UpdateFieldValues_String('Verwendungszweck','manager_finanzen_Ausgaben',sUse,iSyncID);
@@ -2006,9 +2040,9 @@ var
   bDeleted: boolean;
   iSyncID: Integer;
 begin
+
   joResponseJSON := nil;
   jaDetails := nil;
-//  jSonValue := nil;
   iZaehler:= 0;
   jaDetails :=  AJSONObject.GetValue<TJSONArray>('Vouchers');
   for var JSonValue in jaDetails do
@@ -2023,7 +2057,6 @@ begin
     JSonValue.TryGetValue<integer>('Year',iYear);
     JSonValue.TryGetValue<integer>('ID_Vouchers',iID_Vouchers);
     JSonValue.TryGetValue<boolean>('Deleted',bDeleted);
-
     if bDeleted then
     begin
       dm_PCM.qry_Work.SQL.Text :=  'DELETE FROM manager_finanzen_belege WHERE ID = :iID_Receipts';
@@ -2054,7 +2087,7 @@ begin
       begin
         iSyncID:= dm_Pcm.qry_Work.FieldByName('ID').AsInteger;
         if sNumber <> '' then UpdateFieldValues_String('Nummer','manager_finanzen_belege',sNumber,iSyncID);
-        if sDate <> '' then UpdateFieldValues_TDate('Datum','Belege',StrToDate(sDate),iSyncID);
+        if sDate <> '' then UpdateFieldValues_TDate('Datum','manager_finanzen_belege',StrToDate(sDate),iSyncID);
         if sExhibitor <> '' then UpdateFieldValues_String('Aussteller','manager_finanzen_belege',sExhibitor,iSyncID);
         if FloatToStr(famount) <> '' then UpdateFieldValues_Float('Betrag','manager_finanzen_belege',famount,iSyncID);
         if IntToStr(iID_Categorie) <> ''  then UpdateFieldValues_Integer('Kategorie','manager_finanzen_belege',iID_Categorie,iSyncID);
@@ -2140,6 +2173,7 @@ var
   bDeleted: boolean;
   iSyncID: Integer;
 begin
+  try
   joResponseJSON := nil;
   jaDetails := nil;
   iZaehler:= 0;
@@ -2200,6 +2234,10 @@ begin
   joResponseJSON.AddPair(TJSONPair.Create('ErrorCode',TJSONNumber.Create(0)));
   joResponseJSON.AddPair(TJSONPair.Create('Errormessage',TJSONString.Create('')));
   Result := joResponseJSON;
+  except
+    on e:Exception do
+      WriteLog(PCM_Logname,'SetGutschein:' + e.Message,2);
+  end;
 end;
 {$EndRegion Gutscheine}
 {$EndRegion APPapi}
