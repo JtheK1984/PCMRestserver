@@ -29,7 +29,7 @@ BEGIN
       VALUE "ProductVersion",VERSION_STRING_SMALL "\0"
       VALUE "CompanyName", "PCM\0"
       VALUE "OriginalFilename", "PCMRestserver.exe (32-Bit)\0"
-      VALUE "Comments", "\0"
+      VALUE "Comments", "\0" 
     END
   END
 
