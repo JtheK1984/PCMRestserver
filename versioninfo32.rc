@@ -23,13 +23,13 @@ BEGIN
     BEGIN
       VALUE "FileDescription", "Restserver für PCM - Applikationen\0"
       VALUE "FileVersion", VERSION_STRING_FULL "\0"
-      VALUE "InternalName", "PCMRestserver.exe\0"
+      VALUE "InternalName", "PCMDEVManager.exe\0"
       VALUE "LegalCopyright", "PCM (Jens Henske)\0"
-      VALUE "ProductName", "PCMRestserver 32-Bit\0"
+      VALUE "ProductName", "PCMDEVManager 32-Bit\0"
       VALUE "ProductVersion",VERSION_STRING_SMALL "\0"
       VALUE "CompanyName", "PCM\0"
-      VALUE "OriginalFilename", "PCMRestserver.exe (32-Bit)\0"
-      VALUE "Comments", "\0" 
+      VALUE "OriginalFilename", "PCMDEVManager.exe (32-Bit)\0"
+      VALUE "Comments", "\0"
     END
   END
 
