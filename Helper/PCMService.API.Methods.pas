@@ -42,6 +42,18 @@ uses
   function CreateBackup_Intern(const sToken, sPath: String): TJSONObject;
   function GetKalenderConfig_Intern(const AJSONObject: TJSONObject): TJSONObject;
   //////////////////////////////////////////////////////////////////////////////
+  // TimeAPPAPI - PCM                                                         //
+  //////////////////////////////////////////////////////////////////////////////
+  function GetContactsZE_Intern(AID_Benutzer: string): TJSONObject;
+  function GetLastBooking_Intern(AID_Benutzer: string): TJSONObject;
+  function SetLastBooking_Intern(AID_Benutzer: string; const AJSONObject: TJSONObject): TJSONObject;
+  function GetBookingYear_Intern(AID_Benutzer,AJahr: string): TJSONObject;
+  function GetAbsenceconfig_Intern(AID_Benutzer: string): TJSONObject;
+  function GetAbsence_Intern(AID_Benutzer: string): TJSONObject;
+  function SetOnlineBooking_Intern(AID_Benutzer: string; const AJSONObject: TJSONObject): TJSONObject;
+  function GetMonthValues_Intern(AID_Benutzer: Integer): TDataset;
+
+  //////////////////////////////////////////////////////////////////////////////
   // APPAPI - PCM                                                             //
   //////////////////////////////////////////////////////////////////////////////
   // Servercheck
@@ -2241,4 +2253,387 @@ begin
 end;
 {$EndRegion Gutscheine}
 {$EndRegion APPapi}
+
+{$Region TimeAPPapi}
+function GetContactsZE_Intern(AID_Benutzer: string): TJSONObject;
+begin
+  joResponseJSON:= nil;
+  joResponseJSONData:= nil;
+  jaDetails:= nil;
+  if not Assigned(joResponseJSON) then
+    joResponseJSON := TJSONObject.Create;
+  dm_PCM.qry_Work.SQL.Text :=  'SELECT kon.ID as Kontakte_ID ,a.Bezeichnung AS Anrede, kon.Vorname,kon.Nachname,' +
+                               'kon.Strasse_Privat,kon.PLZ_Privat,kon.Ort_Privat,'+
+                               'kon.Telefon_Privat,kon.Handy_Privat, kon.E_mail_Privat,'+
+                               'kon.Geburtsdatum, g.Bezeichnung as Geschlecht,'+
+                               'f.Bezeichnung as Familienstand, s.Bezeichnung as Staatsangehoerigkeit,'+
+                               'k.Bezeichnung as Konfession,kon.Firma,kon.Strasse_Ges,kon.PLZ_Ges,'+
+                               'kon.Ort_Ges,kon.Telefon_Ges,kon.Handy_Ges,kon.E_mail_Ges,Internet_Privat as Link,Internet_Ges as LinkFirma, '+
+                               'kon.Urlaub,kon.Eintritt,kon.OffsetResturlaub,kon.OffsetResturlaubJahr,kon.Personalnummer,kon.Sollstunden ' +
+                               'FROM manager_kontakte kon '+
+                               'LEFT OUTER JOIN manager_Anrede a ON a.ID = kon.ID_Anrede '+
+                               'LEFT OUTER JOIN manager_Geschlecht g ON g.ID = kon.ID_GEschlecht '+
+                               'LEFT OUTER JOIN manager_Familienstand f ON f.ID = kon.ID_Familienstand '+
+                               'LEFT OUTER JOIN manager_Staatsangehoerigkeit s ON s.ID = kon.ID_Staatsangehoerigkeit '+
+                               'LEFT OUTER JOIN manager_Konfession k ON k.ID = kon.ID_Konfession Where kon.ID_Zeiterfasser = :ID_Benutzer';
+  dm_PCM.qry_Work.ParamByName('ID_Benutzer').AsInteger := StrToInt(AID_Benutzer);
+  dm_PCM.qry_Work.Open;
+  WriteLog(PCM_Logname,rs_PCMAPPServer_Kontakteanzahl+ IntToStr(dm_PCM.qry_Work.RecordCount),0);
+  if dm_PCM.qry_Work.RecordCount > 0 then
+  begin
+    iCode:= 200;
+    sMessage:= 'OK';
+    joResponseJSON.AddPair(TJSONPair.Create('HasError',TJSONBool.Create(false)));
+    joResponseJSON.AddPair(TJSONPair.Create('ErrorCode',TJSONNumber.Create(0)));
+    joResponseJSON.AddPair(TJSONPair.Create('Errormessage',TJSONString.Create('')));
+    if not Assigned(jaDetails) then
+      jaDetails := TJSONArray.Create;
+    while not dm_PCM.qry_work.eof do
+    begin
+      if not Assigned(joResponseJSONData) then
+        joResponseJSONData := TJSONObject.Create;
+      joResponseJSONData.AddPair(TJSONPair.Create('ID', TJSONNumber.Create(dm_PCM.qry_Work.FieldByName('Kontakte_ID').AsInteger)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Salutation', TJSONString.Create(dm_PCM.qry_Work.FieldByName('Anrede').asString)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Name', TJSONString.Create(dm_PCM.qry_Work.FieldByName('Vorname').asString)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Surname', TJSONString.Create(dm_PCM.qry_Work.FieldByName('Nachname').asString)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Street_private', TJSONString.Create(dm_PCM.qry_Work.FieldByName('Strasse_Privat').asString)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Postalcode_private', TJSONString.Create(dm_PCM.qry_Work.FieldByName('PLZ_Privat').asString)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Place_private', TJSONString.Create(dm_PCM.qry_Work.FieldByName('Ort_Privat').asString)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Phone_private', TJSONString.Create(dm_PCM.qry_Work.FieldByName('Telefon_Privat').asString)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Mobile_private', TJSONString.Create(dm_PCM.qry_Work.FieldByName('Handy_Privat').asString)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Mail_private', TJSONString.Create(dm_PCM.qry_Work.FieldByName('E_mail_Privat').asString)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Web_private', TJSONString.Create(dm_PCM.qry_Work.FieldByName('Link').asString)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Birthday', TJSONString.Create(dm_PCM.qry_Work.FieldByName('Geburtsdatum').asString)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Gender', TJSONString.Create(dm_PCM.qry_Work.FieldByName('Geschlecht').asString)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Maritalstatus', TJSONString.Create(dm_PCM.qry_Work.FieldByName('Familienstand').asString)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Nationality', TJSONString.Create(dm_PCM.qry_Work.FieldByName('Staatsangehoerigkeit').asString)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Denomination', TJSONString.Create(dm_PCM.qry_Work.FieldByName('Konfession').asString)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Company', TJSONString.Create(dm_PCM.qry_Work.FieldByName('Firma').asString)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Street_business', TJSONString.Create(dm_PCM.qry_Work.FieldByName('Strasse_Ges').asString)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Postalcode_business', TJSONString.Create(dm_PCM.qry_Work.FieldByName('PLZ_Ges').asString)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Place_business', TJSONString.Create(dm_PCM.qry_Work.FieldByName('Ort_Ges').asString)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Phone_business', TJSONString.Create(dm_PCM.qry_Work.FieldByName('Telefon_Ges').asString)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Mobile_business', TJSONString.Create(dm_PCM.qry_Work.FieldByName('Handy_Ges').asString)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Mail_business', TJSONString.Create(dm_PCM.qry_Work.FieldByName('E_mail_Ges').asString)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Web_business', TJSONString.Create(dm_PCM.qry_Work.FieldByName('LinkFirma').asString)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Vacation',TJSONNumber.Create(dm_PCM.qry_Work.FieldByName('Urlaub').AsFloat)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Entrance',TJSONString.Create(DateToStr(dm_PCM.qry_Work.FieldByName('Eintritt').AsDateTime))));
+      joResponseJSONData.AddPair(TJSONPair.Create('OffsetRemaining_vacation',TJSONNumber.Create(dm_PCM.qry_Work.FieldByName('OffsetResturlaub').AsFloat)));
+      joResponseJSONData.AddPair(TJSONPair.Create('OffsetRemaining_vacation_toYear',TJSONNumber.Create(dm_PCM.qry_Work.FieldByName('OffsetResturlaubJahr').AsInteger)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Personnel_number',TJSONNumber.Create(dm_PCM.qry_Work.FieldByName('Personalnummer').AsInteger)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Planned_hours',TJSONString.Create(TimeToStr(dm_PCM.qry_Work.FieldByName('Sollstunden').AsDateTime))));
+      jaDetails.Add(joResponseJSONData);
+      joResponseJSONData:= nil;
+      dm_PCM.qry_work.Next;
+    end;
+    joResponseJSON.AddPair(TJSONPair.Create('Personal', jaDetails));
+  end
+  else
+  begin
+    iCode:= 200;
+    sMessage:= 'OK';
+    joResponseJSON.AddPair(TJSONPair.Create('HasError',TJSONBool.Create(true)));
+    joResponseJSON.AddPair(TJSONPair.Create('ErrorCode',TJSONNumber.Create(1)));
+    joResponseJSON.AddPair(TJSONPair.Create('Errormessage',TJSONString.Create('Keine Datensätze vorhanden')));
+  end;
+  dm_PCM.qry_Work.Close;
+  Result := joResponseJSON;
+  WriteLog(PCM_Logname,'Personaldaten ermitteln',0);
+end;
+function GetLastBooking_Intern(AID_Benutzer: String): TJSONObject;
+begin
+  joResponseJSON:= nil;
+  joResponseJSONData:= nil;
+  jaDetails:= nil;
+  if not Assigned(joResponseJSON) then
+    joResponseJSON := TJSONObject.Create;
+  dm_PCM.qry_Work.SQL.Text :=  'SELECT Text FROM manager_message ';
+//  dm_PCM.qry_Work.ParamByName('ID').AsInteger := StrToInt(AID_Benutzer);
+  dm_PCM.qry_Work.Open;
+  WriteLog(PCM_Logname,'Letzte Buchung ermitteln',0);
+  if dm_PCM.qry_Work.RecordCount > 0 then
+  begin
+    iCode:= 200;
+    sMessage:= 'OK';
+    joResponseJSON.AddPair(TJSONPair.Create('HasError',TJSONBool.Create(false)));
+    joResponseJSON.AddPair(TJSONPair.Create('ErrorCode',TJSONNumber.Create(0)));
+    joResponseJSON.AddPair(TJSONPair.Create('Errormessage',TJSONString.Create('')));
+    if not Assigned(jaDetails) then
+      jaDetails := TJSONArray.Create;
+    while not dm_PCM.qry_work.eof do
+    begin
+      if not Assigned(joResponseJSONData) then
+        joResponseJSONData := TJSONObject.Create;
+      joResponseJSONData.AddPair(TJSONPair.Create('LastBooking', TJSONString.Create(dm_PCM.qry_Work.FieldByName('Text').asString)));
+      jaDetails.Add(joResponseJSONData);
+      joResponseJSONData:= nil;
+      dm_PCM.qry_work.Next;
+    end;
+    joResponseJSON.AddPair(TJSONPair.Create('LastBooking', jaDetails));
+  end
+  else
+  begin
+    iCode:= 200;
+    sMessage:= 'OK';
+    joResponseJSON.AddPair(TJSONPair.Create('HasError',TJSONBool.Create(true)));
+    joResponseJSON.AddPair(TJSONPair.Create('ErrorCode',TJSONNumber.Create(1)));
+    joResponseJSON.AddPair(TJSONPair.Create('Errormessage',TJSONString.Create('Keine Datensätze vorhanden')));
+  end;
+  dm_PCM.qry_Work.Close;
+  Result := joResponseJSON;
+end;
+function SetLastBooking_Intern(AID_Benutzer: string; const AJSONObject: TJSONObject): TJSONObject;
+var
+  iZaehler,
+  iAnzahl: integer;
+  sLastBooking: String;
+begin
+  joResponseJSON := nil;
+  jaDetails := nil;
+  iZaehler:= 0;
+  jaDetails :=  AJSONObject.GetValue<TJSONArray>('LastBooking');
+  for var JSonValue in jaDetails do
+  begin
+    JSonValue.TryGetValue<string>('LastBooking',sLastBooking);
+    dm_PCM.qry_Work.SQL.Text:=  'SELECT COUNT(*) as Anzahl FROM manager_message ';
+    dm_PCM.qry_Work.Open;
+    iAnzahl:= dm_PCM.qry_Work.FieldByName('Anzahl').asInteger;
+    dm_PCM.qry_Work.Close;
+    if iAnzahl = 0 then
+    begin
+      dm_PCM.qry_Work.SQL.Text:=  'INSERT INTO manager_message (Text) Values (:Text)';
+      dm_PCM.qry_Work.ParamByName('Text').AsString:= sLastBooking;
+      dm_PCM.qry_Work.ExecSQL;
+    end
+    else begin
+      dm_PCM.qry_Work.SQL.Text:=  'Update manager_message SET Text = :Text';
+      dm_PCM.qry_Work.ParamByName('Text').AsString:= sLastBooking;
+      dm_PCM.qry_Work.ExecSQL;
+    end;
+  end;
+  WriteLog(PCM_Logname,'Letzte Buchung aktualisieren' + IntToStr(iZaehler),0);
+  if not Assigned(joResponseJSON) then
+    joResponseJSON := TJSONObject.Create;
+  joResponseJSON.AddPair(TJSONPair.Create('HasError',TJSONBool.Create(false)));
+  joResponseJSON.AddPair(TJSONPair.Create('ErrorCode',TJSONNumber.Create(0)));
+  joResponseJSON.AddPair(TJSONPair.Create('Errormessage',TJSONString.Create('')));
+  Result := joResponseJSON;
+end;
+function GetBookingYear_Intern(AID_Benutzer,AJahr: string): TJSONObject;
+var
+  wJahr,wMonat,wTag: Word;
+begin
+  DecodeDate(Date,wJahr,wMonat,wTag);
+  joResponseJSON:= nil;
+  joResponseJSONData:= nil;
+  jaDetails:= nil;
+  if not Assigned(joResponseJSON) then
+    joResponseJSON := TJSONObject.Create;
+  dm_PCM.qry_Work.SQL.Text :=  'SELECT ID, Datum, Tag, Kommen, Gehen, Pause1Beginn,Pause1Ende,' +
+                               'Pause2Beginn,Pause2Ende,Sollstunden,SollstundenI,Arbeitszeit,ArbeitszeitI,' +
+                               'Feiertag,Fehltag,Mehrarbeit,MehrarbeitI,Pauseni,FeiertagI,' +
+                               'IFNULL(Abgeschlossen,0) AS Abgeschlossen,Buchungsart, IFNULL(ID_Fehltage,0) AS ID_Fehltage ' +
+                               'FROM manager_buchungen Where Datum >= :Von and Datum <= :Bis';
+  dm_PCM.qry_Work.ParamByName('Von').AsDate:= StartOfAMonth(StrtoInt(AJahr),1);
+  dm_PCM.qry_Work.ParamByName('Bis').AsDate:= EndOfAMonth(StrtoInt(AJahr),12);
+  dm_PCM.qry_Work.Open;
+  WriteLog(PCM_Logname,'Kontakte vom Server laden',0);
+  if dm_PCM.qry_Work.RecordCount > 0 then
+  begin
+    iCode:= 200;
+    sMessage:= 'OK';
+    joResponseJSON.AddPair(TJSONPair.Create('HasError',TJSONBool.Create(false)));
+    joResponseJSON.AddPair(TJSONPair.Create('ErrorCode',TJSONNumber.Create(0)));
+    joResponseJSON.AddPair(TJSONPair.Create('Errormessage',TJSONString.Create('')));
+    if not Assigned(jaDetails) then
+      jaDetails := TJSONArray.Create;
+    while not dm_PCM.qry_work.eof do
+    begin
+      if not Assigned(joResponseJSONData) then
+        joResponseJSONData := TJSONObject.Create;
+      joResponseJSONData.AddPair(TJSONPair.Create('ID', TJSONNumber.Create(dm_PCM.qry_Work.FieldByName('ID').AsInteger)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Date', TJSONString.Create(DateToStr(dm_PCM.qry_Work.FieldByName('Datum').AsDateTime))));
+      joResponseJSONData.AddPair(TJSONPair.Create('Day', TJSONString.Create(dm_PCM.qry_Work.FieldByName('Tag').asString)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Work_begin', TJSONString.Create(TimeToStr(dm_PCM.qry_Work.FieldByName('Kommen').AsDateTime))));
+      joResponseJSONData.AddPair(TJSONPair.Create('Work_end', TJSONString.Create(TimeToStr(dm_PCM.qry_Work.FieldByName('Gehen').AsDateTime))));
+      joResponseJSONData.AddPair(TJSONPair.Create('Break1_begin', TJSONString.Create(dm_PCM.qry_Work.FieldByName('Pause1Beginn').asString)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Break1_end', TJSONString.Create(dm_PCM.qry_Work.FieldByName('Pause1Ende').asString)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Break2_begin', TJSONString.Create(dm_PCM.qry_Work.FieldByName('Pause2Beginn').asString)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Break2_end', TJSONString.Create(dm_PCM.qry_Work.FieldByName('Pause2Ende').asString)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Planned_hours_Time', TJSONString.Create(dm_PCM.qry_Work.FieldByName('Sollstunden').asString)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Planned_hours_Integer', TJSONNumber.Create(dm_PCM.qry_Work.FieldByName('Sollstundeni').AsInteger)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Working_time_Time', TJSONString.Create(dm_PCM.qry_Work.FieldByName('Arbeitszeit').asString)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Working_time_Integer', TJSONNumber.Create(dm_PCM.qry_Work.FieldByName('Arbeitszeiti').AsInteger)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Holiday', TJSONNumber.Create(dm_PCM.qry_Work.FieldByName('Feiertag').AsInteger)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Absence_day', TJSONString.Create(dm_PCM.qry_Work.FieldByName('Fehltag').asString)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Overtime_Time', TJSONString.Create(dm_PCM.qry_Work.FieldByName('Mehrarbeit').asString)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Overtime_Integer', TJSONNumber.Create(dm_PCM.qry_Work.FieldByName('Mehrarbeiti').AsInteger)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Break_Integer', TJSONNumber.Create(dm_PCM.qry_Work.FieldByName('Pauseni').AsInteger)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Holiday_Integer', TJSONNumber.Create(dm_PCM.qry_Work.FieldByName('Feiertagi').AsInteger)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Complete', TJSONNumber.Create(dm_PCM.qry_Work.FieldByName('Abgeschlossen').AsInteger)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Booking_type', TJSONNumber.Create(dm_PCM.qry_Work.FieldByName('Buchungsart').AsInteger)));
+      joResponseJSONData.AddPair(TJSONPair.Create('ID_Absence_day', TJSONNumber.Create(dm_PCM.qry_Work.FieldByName('ID_Fehltage').AsInteger)));
+      jaDetails.Add(joResponseJSONData);
+      joResponseJSONData:= nil;
+      dm_PCM.qry_work.Next;
+    end;
+    joResponseJSON.AddPair(TJSONPair.Create('Booking', jaDetails));
+  end
+  else
+  begin
+    iCode:= 200;
+    sMessage:= 'OK';
+    joResponseJSON.AddPair(TJSONPair.Create('HasError',TJSONBool.Create(true)));
+    joResponseJSON.AddPair(TJSONPair.Create('ErrorCode',TJSONNumber.Create(1)));
+    joResponseJSON.AddPair(TJSONPair.Create('Errormessage',TJSONString.Create('Keine Datensätze vorhanden')));
+  end;
+  dm_PCM.qry_Work.Close;
+  Result := joResponseJSON;
+end;
+function GetAbsenceconfig_Intern(AID_Benutzer: string): TJSONObject;
+begin
+  joResponseJSON:= nil;
+  joResponseJSONData:= nil;
+  jaDetails:= nil;
+  if not Assigned(joResponseJSON) then
+    joResponseJSON := TJSONObject.Create;
+  dm_PCM.qry_Work.SQL.Text :=  'SELECT * FROM manager_fehltag';
+  dm_PCM.qry_Work.Open;
+  WriteLog(PCM_Logname,'Fehltagekonfiguration laden',0);
+  if dm_PCM.qry_Work.RecordCount > 0 then
+  begin
+    iCode:= 200;
+    sMessage:= 'OK';
+    joResponseJSON.AddPair(TJSONPair.Create('HasError',TJSONBool.Create(false)));
+    joResponseJSON.AddPair(TJSONPair.Create('ErrorCode',TJSONNumber.Create(0)));
+    joResponseJSON.AddPair(TJSONPair.Create('Errormessage',TJSONString.Create('')));
+    if not Assigned(jaDetails) then
+      jaDetails := TJSONArray.Create;
+    while not dm_PCM.qry_work.eof do
+    begin
+      if not Assigned(joResponseJSONData) then
+        joResponseJSONData := TJSONObject.Create;
+      joResponseJSONData.AddPair(TJSONPair.Create('ID', TJSONNumber.Create(dm_PCM.qry_Work.FieldByName('ID').AsInteger)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Code', TJSONString.Create(dm_PCM.qry_Work.FieldByName('Kuerzel').asString)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Description', TJSONString.Create(dm_PCM.qry_Work.FieldByName('Beschreibung').AsString)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Type', TJSONNumber.Create(dm_PCM.qry_Work.FieldByName('Typ').AsInteger)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Factor', TJSONNumber.Create(dm_PCM.qry_Work.FieldByName('Faktor').AsInteger)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Paid', TJSONNumber.Create(dm_PCM.qry_Work.FieldByName('Bezahlt').AsInteger)));
+      jaDetails.Add(joResponseJSONData);
+      joResponseJSONData:= nil;
+      dm_PCM.qry_work.Next;
+    end;
+    joResponseJSON.AddPair(TJSONPair.Create('Absence_Day_config', jaDetails));
+  end
+  else
+  begin
+    iCode:= 200;
+    sMessage:= 'OK';
+    joResponseJSON.AddPair(TJSONPair.Create('HasError',TJSONBool.Create(true)));
+    joResponseJSON.AddPair(TJSONPair.Create('ErrorCode',TJSONNumber.Create(1)));
+    joResponseJSON.AddPair(TJSONPair.Create('Errormessage',TJSONString.Create('Keine Datensätze vorhanden')));
+  end;
+  dm_PCM.qry_Work.Close;
+  Result := joResponseJSON;
+end;
+function GetAbsence_Intern(AID_Benutzer: string): TJSONObject;
+begin
+  joResponseJSON:= nil;
+  joResponseJSONData:= nil;
+  jaDetails:= nil;
+  if not Assigned(joResponseJSON) then
+    joResponseJSON := TJSONObject.Create;
+  dm_PCM.qry_Work.SQL.Text :=  'SELECT * FROM manager_fehltage';
+  dm_PCM.qry_Work.Open;
+  WriteLog(PCM_Logname,'Fehltage laden',0);
+  if dm_PCM.qry_Work.RecordCount > 0 then
+  begin
+    iCode:= 200;
+    sMessage:= 'OK';
+    joResponseJSON.AddPair(TJSONPair.Create('HasError',TJSONBool.Create(false)));
+    joResponseJSON.AddPair(TJSONPair.Create('ErrorCode',TJSONNumber.Create(0)));
+    joResponseJSON.AddPair(TJSONPair.Create('Errormessage',TJSONString.Create('')));
+    if not Assigned(jaDetails) then
+      jaDetails := TJSONArray.Create;
+    while not dm_PCM.qry_work.eof do
+    begin
+      if not Assigned(joResponseJSONData) then
+        joResponseJSONData := TJSONObject.Create;
+      joResponseJSONData.AddPair(TJSONPair.Create('ID', TJSONNumber.Create(dm_PCM.qry_Work.FieldByName('ID').AsInteger)));
+      joResponseJSONData.AddPair(TJSONPair.Create('From', TJSONString.Create(DateToStr(dm_PCM.qry_Work.FieldByName('Von').AsDateTime))));
+      joResponseJSONData.AddPair(TJSONPair.Create('To', TJSONString.Create(DateToStr(dm_PCM.qry_Work.FieldByName('Bis').AsDateTime))));
+      joResponseJSONData.AddPair(TJSONPair.Create('Code', TJSONString.Create(dm_PCM.qry_Work.FieldByName('Kuerzel').AsString)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Description', TJSONString.Create(dm_PCM.qry_Work.FieldByName('Beschreibung').asString)));
+      joResponseJSONData.AddPair(TJSONPair.Create('Days', TJSONNumber.Create(dm_PCM.qry_Work.FieldByName('Tage').AsInteger)));
+      jaDetails.Add(joResponseJSONData);
+      joResponseJSONData:= nil;
+      dm_PCM.qry_work.Next;
+    end;
+    joResponseJSON.AddPair(TJSONPair.Create('Absence_Day', jaDetails));
+  end
+  else
+  begin
+    iCode:= 200;
+    sMessage:= 'OK';
+    joResponseJSON.AddPair(TJSONPair.Create('HasError',TJSONBool.Create(true)));
+    joResponseJSON.AddPair(TJSONPair.Create('ErrorCode',TJSONNumber.Create(1)));
+    joResponseJSON.AddPair(TJSONPair.Create('Errormessage',TJSONString.Create('Keine Datensätze vorhanden')));
+  end;
+  dm_PCM.qry_Work.Close;
+  Result := joResponseJSON;
+end;
+
+function GetMonthValues_Intern(AID_Benutzer: Integer): TDataset;
+begin
+  dm_PCM.qry_Work.SQL.Text :=  'SELECT * FROM manager_monatswerte ';
+  dm_PCM.qry_Work.Open;
+  WriteLog(PCM_Logname,rs_PCMAPPServer_Monatswerteanzahl + IntToStr(dm_PCM.qry_Work.RecordCount),0);
+  Result := dm_PCM.qry_Work;
+end;
+
+
+function SetOnlineBooking_Intern(AID_Benutzer: string; const AJSONObject: TJSONObject): TJSONObject;
+var
+  iZaehler: Integer;
+  sField: string;
+  sDate: string;
+  sTime: string;
+  iType: Integer;
+  iBooking_Type: Integer;
+begin
+  joResponseJSON := nil;
+  jaDetails := nil;
+  iZaehler:= 0;
+  jaDetails :=  AJSONObject.GetValue<TJSONArray>('OnlineBooking');
+  for var JSonValue in jaDetails do
+  begin
+    JSonValue.TryGetValue<string>('Date',sDate);
+    JSonValue.TryGetValue<string>('Time',sTime);
+    JSonValue.TryGetValue<integer>('Type',iType);
+    JSonValue.TryGetValue<integer>('Booking_Type',iBooking_Type);
+    case iType of
+    1: sField:= 'Kommen';
+    2: sField:= 'Gehen';
+    3: sField:= 'Pause1Beginn';
+    4: sField:= 'Pause1Ende';
+    5: sField:= 'Pause2Beginn';
+    6: sField:= 'Pause2Ende';
+    end;
+
+    dm_PCM.qry_Work.SQL.Text:=  'Update manager_Buchungen Set ' + sField + ' = :time, Buchungsart = :Buchungsart Where Datum = :Datum';
+    dm_PCM.qry_Work.ParamByName('time').AsTime:= StrToTime(sTime);
+    dm_PCM.qry_Work.ParamByName('Buchungsart').asInteger := iBooking_Type;
+    dm_PCM.qry_Work.ParamByName('Datum').AsDate:= StrToDate(sDate);
+    dm_PCM.qry_Work.ExecSQL;
+    iZaehler:= iZaehler + 1;
+  end;
+  WriteLog(PCM_Logname,rs_PCMAPPServer_Buchungpruefung + IntToStr(iZaehler),0);
+  if not Assigned(joResponseJSON) then
+    joResponseJSON := TJSONObject.Create;
+  joResponseJSON.AddPair(TJSONPair.Create('HasError',TJSONBool.Create(false)));
+  joResponseJSON.AddPair(TJSONPair.Create('ErrorCode',TJSONNumber.Create(0)));
+  joResponseJSON.AddPair(TJSONPair.Create('Errormessage',TJSONString.Create('')));
+  Result := joResponseJSON;
+end;
+{$EndRegion TimeAPPapi}
 end.

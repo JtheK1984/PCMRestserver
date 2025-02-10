@@ -58,6 +58,29 @@ type
     function UpdateGetKalenderConfig(const AJSONObject: TJSONObject): TJSONObject;
     {$EndRegion Rest-API}
     ////////////////////////////////////////////////////////////////////////////
+    // TimeAPP - RESTfunktionen                                               //
+    ////////////////////////////////////////////////////////////////////////////
+    {$Region TimeAPP-API}
+    [TRoleAuth('WebAPI_PCM')]
+    function UpdateGetContactsZE: TJSonObject;
+    [TRoleAuth('WebAPI_PCM')]
+    function UpdateGetLastBooking: TJSonObject;
+    [TRoleAuth('WebAPI_PCM')]
+    function AcceptSetLastBooking(const AJSONObject: TJSONObject): TJSonObject;
+    [TRoleAuth('WebAPI_PCM')]
+    function UpdateGetBookingYear: TJSonObject;
+    [TRoleAuth('WebAPI_PCM')]
+    function UpdateGetAbsenceconfig: TJSonObject;
+    [TRoleAuth('WebAPI_PCM')]
+    function UpdateGetAbsence: TJSonObject;
+    [TRoleAuth('WebAPI_PCM')]
+    function AcceptSetOnlineBooking(const AJSONObject: TJSONObject): TJSonObject;
+
+
+//    [TRoleAuth('WebAPI_PCM')]
+//    function GetMonthValues(AID_Benutzer: Integer): TDataset;
+    {$EndRegion TimeAPP-API}
+    ////////////////////////////////////////////////////////////////////////////
     // APP - RESTfunktionen                                                   //
     ////////////////////////////////////////////////////////////////////////////
     {$Region APP-API}
@@ -667,5 +690,176 @@ begin
 end;
 {$EndRegion Gutscheine}
 {$EndRegion APP-Api}
+{$Region TimeAPP-Api}
+// Personaldaten ermitteln
+function v1.UpdateGetContactsZE: TJSonObject;
+var
+  metaData: TDSInvocationMetadata;
+begin
+  metaData := GetInvocationMetadata;
+  if CheckUser then
+  begin
+    if metaData.QueryParams.Count = 1 then
+    begin
+      Result := GetContactsZE_Intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]));
+    end
+    else
+    begin
+      metaData.ResponseCode:= 400;
+      Result := GetContactsZE_Intern('');
+    end;
+  end
+  else begin
+    metaData.ResponseCode:= 401;
+    Result:= BadRequest;
+  end;
+  ResultToJSONContent(Result);
+end;
+// Letzte Buchung ermitteln
+function v1.UpdateGetLastBooking: TJSonObject;
+var
+  metaData: TDSInvocationMetadata;
+begin
+  metaData := GetInvocationMetadata;
+  if CheckUser then
+  begin
+    if metaData.QueryParams.Count = 1 then
+    begin
+      Result := GetLastBooking_Intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]));
+    end
+    else
+    begin
+      metaData.ResponseCode:= 400;
+      Result := GetPasswoerter_Intern('');
+    end;
+  end
+  else begin
+    metaData.ResponseCode:= 401;
+    Result:= BadRequest;
+  end;
+  ResultToJSONContent(Result);
+end;
+// Letzte Buchung übernehmen
+function v1.AcceptSetLastBooking(const AJSONObject: TJSONObject): TJSonObject;
+var
+  metaData: TDSInvocationMetadata;
+begin
+  metaData := GetInvocationMetadata;
+  if CheckUser then
+  begin
+    if metaData.QueryParams.Count = 1 then
+    begin
+      metaData.ResponseCode:= 200;
+      Result:= SetLastBooking_Intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]), AJSONObject);
+    end
+    else
+    begin
+      metaData.ResponseCode:= 400;
+      Result:= SetLastBooking_Intern('',AJSONObject);
+    end;
+  end
+  else begin
+    metaData.ResponseCode:= 401;
+    Result:= BadRequest;
+  end;
+  ResultToJSONContent(Result);
+end;
+// Buchungen Jahr ermitteln
+function v1.UpdateGetBookingYear: TJSonObject;
+var
+  metaData: TDSInvocationMetadata;
+begin
+  metaData := GetInvocationMetadata;
+  if CheckUser then
+  begin
+    if metaData.QueryParams.Count = 2 then
+    begin
+      Result := GetBookingYear_Intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]),StringReplace(metaData.QueryParams[1],'Year=','',[rfReplaceAll,rfIgnoreCase]));
+    end
+    else
+    begin
+      metaData.ResponseCode:= 400;
+      Result := GetBookingYear_Intern('','');
+    end;
+  end
+  else begin
+    metaData.ResponseCode:= 401;
+    Result:= BadRequest;
+  end;
+  ResultToJSONContent(Result);
+end;
+// Fehltagekonfig ermitteln
+function v1.UpdateGetAbsenceconfig: TJSonObject;
+var
+  metaData: TDSInvocationMetadata;
+begin
+  metaData := GetInvocationMetadata;
+  if CheckUser then
+  begin
+    if metaData.QueryParams.Count = 1 then
+    begin
+      Result := GetAbsenceconfig_Intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]));
+    end
+    else
+    begin
+      metaData.ResponseCode:= 400;
+      Result := GetAbsenceconfig_Intern('');
+    end;
+  end
+  else begin
+    metaData.ResponseCode:= 401;
+    Result:= BadRequest;
+  end;
+  ResultToJSONContent(Result);
+end;
+// Fehltage ermitteln
+function v1.UpdateGetAbsence: TJSonObject;
+var
+  metaData: TDSInvocationMetadata;
+begin
+  metaData := GetInvocationMetadata;
+  if CheckUser then
+  begin
+    if metaData.QueryParams.Count = 1 then
+    begin
+      Result := GetAbsence_Intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]));
+    end
+    else
+    begin
+      metaData.ResponseCode:= 400;
+      Result := GetAbsence_Intern('');
+    end;
+  end
+  else begin
+    metaData.ResponseCode:= 401;
+    Result:= BadRequest;
+  end;
+  ResultToJSONContent(Result);
+end;
+// OnlineBuchung schreiben
+function v1.AcceptSetOnlineBooking(const AJSONObject: TJSONObject): TJSonObject;
+var
+  metaData: TDSInvocationMetadata;
+begin
+  metaData := GetInvocationMetadata;
+  if CheckUser then
+  begin
+    if metaData.QueryParams.Count = 1 then
+    begin
+      Result := SetOnlineBooking_Intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]), AJSONObject);
+    end
+    else
+    begin
+      metaData.ResponseCode:= 400;
+      Result := SetOnlineBooking_Intern('',AJSONObject);
+    end;
+  end
+  else begin
+    metaData.ResponseCode:= 401;
+    Result:= BadRequest;
+  end;
+  ResultToJSONContent(Result);
+end;
+{$EndRegion TimeAPP-Api}
 end.
 
