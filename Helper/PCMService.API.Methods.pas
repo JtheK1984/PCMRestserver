@@ -2253,7 +2253,6 @@ begin
 end;
 {$EndRegion Gutscheine}
 {$EndRegion APPapi}
-
 {$Region TimeAPPapi}
 function GetContactsZE_Intern(AID_Benutzer: string): TJSONObject;
 begin
@@ -2270,12 +2269,12 @@ begin
                                'k.Bezeichnung as Konfession,kon.Firma,kon.Strasse_Ges,kon.PLZ_Ges,'+
                                'kon.Ort_Ges,kon.Telefon_Ges,kon.Handy_Ges,kon.E_mail_Ges,Internet_Privat as Link,Internet_Ges as LinkFirma, '+
                                'kon.Urlaub,kon.Eintritt,kon.OffsetResturlaub,kon.OffsetResturlaubJahr,kon.Personalnummer,kon.Sollstunden ' +
-                               'FROM manager_kontakte kon '+
-                               'LEFT OUTER JOIN manager_Anrede a ON a.ID = kon.ID_Anrede '+
-                               'LEFT OUTER JOIN manager_Geschlecht g ON g.ID = kon.ID_GEschlecht '+
-                               'LEFT OUTER JOIN manager_Familienstand f ON f.ID = kon.ID_Familienstand '+
-                               'LEFT OUTER JOIN manager_Staatsangehoerigkeit s ON s.ID = kon.ID_Staatsangehoerigkeit '+
-                               'LEFT OUTER JOIN manager_Konfession k ON k.ID = kon.ID_Konfession Where kon.ID_Zeiterfasser = :ID_Benutzer';
+                               'FROM time_user kon '+
+                               'LEFT OUTER JOIN time_Anrede a ON a.ID = kon.ID_Anrede '+
+                               'LEFT OUTER JOIN time_Geschlecht g ON g.ID = kon.ID_GEschlecht '+
+                               'LEFT OUTER JOIN time_Familienstand f ON f.ID = kon.ID_Familienstand '+
+                               'LEFT OUTER JOIN time_Staatsangehoerigkeit s ON s.ID = kon.ID_Staatsangehoerigkeit '+
+                               'LEFT OUTER JOIN time_Konfession k ON k.ID = kon.ID_Konfession Where kon.ID_Zeiterfasser = :ID_Benutzer';
   dm_PCM.qry_Work.ParamByName('ID_Benutzer').AsInteger := StrToInt(AID_Benutzer);
   dm_PCM.qry_Work.Open;
   WriteLog(PCM_Logname,rs_PCMAPPServer_Kontakteanzahl+ IntToStr(dm_PCM.qry_Work.RecordCount),0);
@@ -2347,7 +2346,7 @@ begin
   jaDetails:= nil;
   if not Assigned(joResponseJSON) then
     joResponseJSON := TJSONObject.Create;
-  dm_PCM.qry_Work.SQL.Text :=  'SELECT Text FROM manager_message ';
+  dm_PCM.qry_Work.SQL.Text :=  'SELECT Text FROM time_message ';
 //  dm_PCM.qry_Work.ParamByName('ID').AsInteger := StrToInt(AID_Benutzer);
   dm_PCM.qry_Work.Open;
   WriteLog(PCM_Logname,'Letzte Buchung ermitteln',0);
@@ -2401,12 +2400,12 @@ begin
     dm_PCM.qry_Work.Close;
     if iAnzahl = 0 then
     begin
-      dm_PCM.qry_Work.SQL.Text:=  'INSERT INTO manager_message (Text) Values (:Text)';
+      dm_PCM.qry_Work.SQL.Text:=  'INSERT INTO time_message (Text) Values (:Text)';
       dm_PCM.qry_Work.ParamByName('Text').AsString:= sLastBooking;
       dm_PCM.qry_Work.ExecSQL;
     end
     else begin
-      dm_PCM.qry_Work.SQL.Text:=  'Update manager_message SET Text = :Text';
+      dm_PCM.qry_Work.SQL.Text:=  'Update time_message SET Text = :Text';
       dm_PCM.qry_Work.ParamByName('Text').AsString:= sLastBooking;
       dm_PCM.qry_Work.ExecSQL;
     end;
@@ -2433,7 +2432,7 @@ begin
                                'Pause2Beginn,Pause2Ende,Sollstunden,SollstundenI,Arbeitszeit,ArbeitszeitI,' +
                                'Feiertag,Fehltag,Mehrarbeit,MehrarbeitI,Pauseni,FeiertagI,' +
                                'IFNULL(Abgeschlossen,0) AS Abgeschlossen,Buchungsart, IFNULL(ID_Fehltage,0) AS ID_Fehltage ' +
-                               'FROM manager_buchungen Where Datum >= :Von and Datum <= :Bis';
+                               'FROM time_buchungen Where Datum >= :Von and Datum <= :Bis';
   dm_PCM.qry_Work.ParamByName('Von').AsDate:= StartOfAMonth(StrtoInt(AJahr),1);
   dm_PCM.qry_Work.ParamByName('Bis').AsDate:= EndOfAMonth(StrtoInt(AJahr),12);
   dm_PCM.qry_Work.Open;
@@ -2497,7 +2496,7 @@ begin
   jaDetails:= nil;
   if not Assigned(joResponseJSON) then
     joResponseJSON := TJSONObject.Create;
-  dm_PCM.qry_Work.SQL.Text :=  'SELECT * FROM manager_fehltag';
+  dm_PCM.qry_Work.SQL.Text :=  'SELECT * FROM time_fehltag';
   dm_PCM.qry_Work.Open;
   WriteLog(PCM_Logname,'Fehltagekonfiguration laden',0);
   if dm_PCM.qry_Work.RecordCount > 0 then
@@ -2543,7 +2542,7 @@ begin
   jaDetails:= nil;
   if not Assigned(joResponseJSON) then
     joResponseJSON := TJSONObject.Create;
-  dm_PCM.qry_Work.SQL.Text :=  'SELECT * FROM manager_fehltage';
+  dm_PCM.qry_Work.SQL.Text :=  'SELECT * FROM time_fehltage';
   dm_PCM.qry_Work.Open;
   WriteLog(PCM_Logname,'Fehltage laden',0);
   if dm_PCM.qry_Work.RecordCount > 0 then
@@ -2582,16 +2581,13 @@ begin
   dm_PCM.qry_Work.Close;
   Result := joResponseJSON;
 end;
-
 function GetMonthValues_Intern(AID_Benutzer: Integer): TDataset;
 begin
-  dm_PCM.qry_Work.SQL.Text :=  'SELECT * FROM manager_monatswerte ';
+  dm_PCM.qry_Work.SQL.Text :=  'SELECT * FROM time_monatswerte ';
   dm_PCM.qry_Work.Open;
   WriteLog(PCM_Logname,rs_PCMAPPServer_Monatswerteanzahl + IntToStr(dm_PCM.qry_Work.RecordCount),0);
   Result := dm_PCM.qry_Work;
 end;
-
-
 function SetOnlineBooking_Intern(AID_Benutzer: string; const AJSONObject: TJSONObject): TJSONObject;
 var
   iZaehler: Integer;
@@ -2620,7 +2616,7 @@ begin
     6: sField:= 'Pause2Ende';
     end;
 
-    dm_PCM.qry_Work.SQL.Text:=  'Update manager_Buchungen Set ' + sField + ' = :time, Buchungsart = :Buchungsart Where Datum = :Datum';
+    dm_PCM.qry_Work.SQL.Text:=  'Update time_Buchungen Set ' + sField + ' = :time, Buchungsart = :Buchungsart Where Datum = :Datum';
     dm_PCM.qry_Work.ParamByName('time').AsTime:= StrToTime(sTime);
     dm_PCM.qry_Work.ParamByName('Buchungsart').asInteger := iBooking_Type;
     dm_PCM.qry_Work.ParamByName('Datum').AsDate:= StrToDate(sDate);
