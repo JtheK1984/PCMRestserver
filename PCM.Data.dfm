@@ -1,6 +1,7 @@
 object dm_PCM: Tdm_PCM
-  Height = 731
-  Width = 1171
+  Height = 1097
+  Width = 1757
+  PixelsPerInch = 144
   object con_PCM: TFDConnection
     Params.Strings = (
       'Database=pcm'
@@ -13,8 +14,8 @@ object dm_PCM: Tdm_PCM
     ResourceOptions.AutoReconnect = True
     LoginPrompt = False
     BeforeConnect = con_PCMBeforeConnect
-    Left = 96
-    Top = 40
+    Left = 144
+    Top = 60
   end
   object qry_work: TFDQuery
     Connection = con_PCM
@@ -23,33 +24,33 @@ object dm_PCM: Tdm_PCM
     FetchOptions.RecordCountMode = cmTotal
     SQL.Strings = (
       '')
-    Left = 96
-    Top = 152
+    Left = 144
+    Top = 228
   end
   object FDPhysMySQLDriverLink1: TFDPhysMySQLDriverLink
-    Left = 608
-    Top = 135
+    Left = 912
+    Top = 203
   end
   object FDPhysMSSQLDriverLink1: TFDPhysMSSQLDriverLink
-    Left = 608
-    Top = 248
+    Left = 912
+    Top = 372
   end
   object FDPhysADSDriverLink1: TFDPhysADSDriverLink
-    Left = 608
-    Top = 191
+    Left = 912
+    Top = 287
   end
   object qry_work1: TFDQuery
     Connection = con_PCM
     SQL.Strings = (
       '')
-    Left = 144
-    Top = 152
+    Left = 216
+    Top = 228
   end
   object qry_Service: TFDQuery
     Connection = con_PCM
     SQL.Strings = (
       '')
-    Left = 96
-    Top = 96
+    Left = 144
+    Top = 144
   end
 end

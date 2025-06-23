@@ -7,8 +7,9 @@ object webPCMModul: TwebPCMModul
       OnAction = WebModule1DefaultHandlerAction
     end>
   BeforeDispatch = WebModuleBeforeDispatch
-  Height = 333
-  Width = 414
+  Height = 500
+  Width = 621
+  PixelsPerInch = 144
   object wdispAuth: TDSHTTPWebDispatcher
     DSContext = 'PCM/'
     RESTContext = 'Sandbox/'
@@ -16,20 +17,20 @@ object webPCMModul: TwebPCMModul
     Filters = <>
     AuthenticationManager = authMngr
     WebDispatch.PathInfo = 'PCM/Sandbox/v0*'
-    Left = 88
-    Top = 67
+    Left = 132
+    Top = 101
   end
   object authMngr: TDSAuthenticationManager
     OnUserAuthenticate = authMngrUserAuthenticate
     Roles = <>
-    Left = 88
-    Top = 123
+    Left = 132
+    Top = 185
   end
   object dsSrvClassAuth: TDSServerClass
     OnGetClass = dsSrvClassAuthGetClass
     Server = DSServer1
-    Left = 104
-    Top = 11
+    Left = 156
+    Top = 17
   end
   object wdispService: TDSHTTPWebDispatcher
     DSContext = 'PCM/'
@@ -38,14 +39,14 @@ object webPCMModul: TwebPCMModul
     Filters = <>
     AuthenticationManager = authMngr
     WebDispatch.PathInfo = 'PCM/sandbox-api*'
-    Left = 184
-    Top = 67
+    Left = 276
+    Top = 101
   end
   object dsSrvClassService_V1: TDSServerClass
     OnGetClass = dsSrvClassService_V1GetClass
     Server = DSServer1
-    Left = 184
-    Top = 11
+    Left = 276
+    Top = 17
   end
   object wdispServiceHTTPS: TDSHTTPWebDispatcher
     DSContext = 'PCM/'
@@ -54,11 +55,11 @@ object webPCMModul: TwebPCMModul
     Filters = <>
     AuthenticationManager = authMngr
     WebDispatch.PathInfo = 'PCM/api*'
-    Left = 248
-    Top = 67
+    Left = 372
+    Top = 101
   end
   object DSServer1: TDSServer
-    Left = 24
-    Top = 11
+    Left = 36
+    Top = 17
   end
 end

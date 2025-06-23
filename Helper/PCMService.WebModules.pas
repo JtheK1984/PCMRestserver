@@ -104,7 +104,7 @@ begin
     valid := True;
   end
   else begin
-    WriteLog(PCM_Logname,rs_PCMLog_FalschesPW,1);
+    WriteLog(PCM_Logname,rs_PCMAPPServer_FalschesPW,1);
   end;
 end;
 {$EndRegion Procedures}

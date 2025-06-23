@@ -153,33 +153,33 @@ begin
   try
     con_PCM.Params.Values['Server'] := sServer;
     try
-      WriteLog(PCM_logname, rs_PCM_Verbindungsversuch1 + ' 1 PCM',0);
+      WriteLog(PCM_logname, rs_Function_Helper_Verbindungsversuch1 + ' 1 PCM',0);
       con_PCM.Connected:= True;
-      WriteLog(PCM_logname, rs_PCM_Verbindungsversuch1 + ' 1 PCM ' + rs_PCM_Verbindungsversuch2,0);
+      WriteLog(PCM_logname, rs_Function_Helper_Verbindungsversuch1 + ' 1 PCM ' + rs_Function_Helper_Verbindungsversuch2,0);
       result:= true;
     except
       Sleep(5000);
       try
-        WriteLog(PCM_logname, rs_PCM_Verbindungsversuch1 + ' 2 pcm',0);
+        WriteLog(PCM_logname, rs_Function_Helper_Verbindungsversuch1 + ' 2 pcm',0);
         con_PCM.Connected:= True;
-        WriteLog(PCM_logname, rs_PCM_Verbindungsversuch1 + ' 2 PCM ' + rs_PCM_Verbindungsversuch2,0);
+        WriteLog(PCM_logname, rs_Function_Helper_Verbindungsversuch1 + ' 2 PCM ' + rs_Function_Helper_Verbindungsversuch2,0);
         result:= true;
       except
         Sleep(5000);
         try
-          WriteLog(PCM_logname, rs_PCM_Verbindungsversuch1 + ' 3 PCM',0);
+          WriteLog(PCM_logname, rs_Function_Helper_Verbindungsversuch1 + ' 3 PCM',0);
           con_PCM.Connected:= True;
-          WriteLog(PCM_logname, rs_PCM_Verbindungsversuch1 + ' 3 PCM ' + rs_PCM_Verbindungsversuch2,0);
+          WriteLog(PCM_logname, rs_Function_Helper_Verbindungsversuch1 + ' 3 PCM ' + rs_Function_Helper_Verbindungsversuch2,0);
           result:= true;
         except
         end;
       end;
     end;
 		qry_work.Connection:= Con_PCM;
-		WriteLog(PCM_LOGname,rs_PCMLog_Verbindungerfolgreich,0);
+		WriteLog(PCM_LOGname,rs_Function_Helper_Verbindungerfolgreich,0);
   except
-		Writelog(PCM_Logname,rs_PCMLog_KeineVerbindung1 + sServer + rs_PCMLog_KeineVerbindung2,2);
-		Writelog(PCM_Logname,rs_PCMLog_PCMINIPruefen + ExtractFilePath(ParamStr(0)) +'PCM.ini.',2);
+		Writelog(PCM_Logname,rs_Function_Helper_KeineVerbindung1 + sServer + rs_Function_Helper_KeineVerbindung2,2);
+		Writelog(PCM_Logname,rs_Function_Helper_PCMINIPruefen + ExtractFilePath(ParamStr(0)) +'PCM.ini.',2);
   end;
 end;
 {$EndRegion Datamodul}

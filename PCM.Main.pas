@@ -153,7 +153,7 @@ procedure TPCM_Restserver.ServiceStart(Sender: TService;var Started: Boolean);
 begin
   if dm_PCM.ReadServerAdress then
   begin
-    WriteLog(PCM_LOGname,rs_PCMLog_Verbindungerfolgreich,0);
+    WriteLog(PCM_LOGname,rs_Function_Helper_Verbindungerfolgreich,0);
     tmrServiceStart.Enabled := True;
   end;
 end;
