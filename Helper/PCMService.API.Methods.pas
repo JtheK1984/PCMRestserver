@@ -2518,7 +2518,7 @@ begin
       joResponseJSONData.AddPair(TJSONPair.Create('Type', TJSONNumber.Create(dm_PCM.qry_Work.FieldByName('Typ').AsInteger)));
       joResponseJSONData.AddPair(TJSONPair.Create('Factor', TJSONNumber.Create(dm_PCM.qry_Work.FieldByName('Faktor').AsInteger)));
       joResponseJSONData.AddPair(TJSONPair.Create('Paid', TJSONNumber.Create(dm_PCM.qry_Work.FieldByName('Bezahlt').AsInteger)));
-      joResponseJSONData.AddPair(TJSONPair.Create('subtract', TJSONNumber.Create(dm_PCM.qry_Work.FieldByName('Bezahlt').AsInteger)));
+      joResponseJSONData.AddPair(TJSONPair.Create('subtract', TJSONNumber.Create(dm_PCM.qry_Work.FieldByName('SollAbziehen').AsInteger)));
       jaDetails.Add(joResponseJSONData);
       joResponseJSONData:= nil;
       dm_PCM.qry_work.Next;
