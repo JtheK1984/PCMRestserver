@@ -72,3 +72,4 @@ modules/
 /Win64/Debug/*.ini
 /Win64/Debug/*.log
 /Win64/Release/*.ini
+/Win64/Release/*.log
