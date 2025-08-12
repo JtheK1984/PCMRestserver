@@ -45,7 +45,7 @@ uses
   Datasnap.DSSession,
   PCMService.vers0,
   RESTServer.Service.Version.vers1,
-  PCM.Strings,
+  PCM.Restserver.Strings,
   PCM.Data,
   PCM.Functions;
   {$EndRegion Uses}

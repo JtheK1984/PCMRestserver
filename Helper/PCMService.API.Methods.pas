@@ -111,7 +111,7 @@ uses
   PCM.Data,
   PCM.Functions,
   PCM.Main,
-  PCM.Strings;
+  PCM.Restserver.Strings;
   {$EndRegion Uses}
 ////////////////////////////////////////////////////////////////////////////////
 // Hilfsfunktionen                                                            //

@@ -181,6 +181,7 @@ $(PreBuildEvent)]]></PreBuildEvent>
         <DCCReference Include="Helper\PCMService.vers0.pas"/>
         <DCCReference Include="Helper\PCMService.API.Methods.pas"/>
         <DCCReference Include="Helper\RESTServer.Service.Records.pas"/>
+        <DCCReference Include="Modules\PCM.Restserver.Strings.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>
@@ -237,6 +238,12 @@ $(PreBuildEvent)]]></PreBuildEvent>
                 <DeployFile LocalName="..\ZMICommon\Helper\MD5.PAS" Configuration="Debug" Class="ProjectFile"/>
                 <DeployFile LocalName="..\ZMICommon\Helper\MD5.PAS" Configuration="Release" Class="ProjectFile"/>
                 <DeployFile LocalName="Win32\Debug\PCMRestserver.exe" Configuration="Debug" Class="ProjectOutput"/>
+                <DeployFile LocalName="Win32\Debug\PCMRestserver.exe" Configuration="Debug" Class="ProjectOutput">
+                    <Platform Name="Win32">
+                        <RemoteName>PCMRestserver.exe</RemoteName>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
                 <DeployFile LocalName="Win32\Debug\PCMService.exe" Configuration="Debug" Class="ProjectOutput"/>
                 <DeployFile LocalName="Win32\Debug\ZMIRESTServer.exe" Configuration="Debug" Class="ProjectOutput"/>
                 <DeployFile LocalName="Win32\Release\PCMRestserver.exe" Configuration="Release" Class="ProjectOutput"/>

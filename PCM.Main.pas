@@ -109,7 +109,7 @@ uses
   PCMService.WebModules,
   Datasnap.DSSession,
   IdGlobal,
-  PCM.Strings;
+  PCM.Restserver.Strings;
   {$EndRegion Uses}
 ////////////////////////////////////////////////////////////////////////////////
 // Servicefunctions                                                           //
