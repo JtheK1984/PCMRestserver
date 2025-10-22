@@ -73,7 +73,6 @@ end;
 type
   TPCM_Restserver = class(TService)
     tmrServiceStart: TTimer;
-    FDManager: TFDManager;
     FDGUIxWaitCursor1: TFDGUIxWaitCursor;
     FDPhysMySQLDriverLink1: TFDPhysMySQLDriverLink;
     procedure ServiceStart(Sender: TService; var Started: Boolean);
@@ -104,7 +103,6 @@ implementation
 {$R *.dfm}
 uses
   {$Region Uses}
-  PCM.Functions,
   PCM.Data,
   PCMService.WebModules,
   Datasnap.DSSession,

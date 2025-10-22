@@ -46,8 +46,8 @@ uses
   PCMService.vers0,
   RESTServer.Service.Version.vers1,
   PCM.Restserver.Strings,
-  PCM.Data,
-  PCM.Functions;
+  PCM.Data;
+
   {$EndRegion Uses}
 ////////////////////////////////////////////////////////////////////////////////
 // Procedures                                                                 //
@@ -61,18 +61,39 @@ begin
                       '  "Errormessage": " unknown API-Call"' + slinebreak  +
                       '}';
 end;
+//procedure TwebPCMModul.WebModuleBeforeDispatch(Sender: TObject; Request: TWebRequest; Response: TWebResponse; var Handled: Boolean);
+//begin
+//  Response.SetCustomHeader('Access-Control-Allow-Origin','*');
+//  Response.SetCustomHeader('Access-Control-Allow-Methods','POST, GET, OPTIONS, DELETE, PUT');
+//  Response.SetCustomHeader('Access-Control-Allow-Headers','append,delete,entries,foreach,get,has,keys,set,values,Authorization');
+//  Response.SetCustomHeader('Access-Control-Expose-Headers','*');
+//  if Trim(Request.GetFieldByName('Access-Control-Request-Headers')) <> '' then
+//  begin
+//    Response.SetCustomHeader('Access-Control-Allow-Headers', Request.GetFieldByName('Access-Control-Request-Headers'));
+//    Handled := True;
+//  end;
+//end;
 procedure TwebPCMModul.WebModuleBeforeDispatch(Sender: TObject; Request: TWebRequest; Response: TWebResponse; var Handled: Boolean);
 begin
-  Response.SetCustomHeader('Access-Control-Allow-Origin','*');
-  Response.SetCustomHeader('Access-Control-Allow-Methods','POST, GET, OPTIONS, DELETE, PUT');
-  Response.SetCustomHeader('Access-Control-Allow-Headers','append,delete,entries,foreach,get,has,keys,set,values,Authorization');
-  Response.SetCustomHeader('Access-Control-Expose-Headers','*');
+  Response.SetCustomHeader('Access-Control-Allow-Origin', '*');
+  Response.SetCustomHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS, DELETE, PUT');
+
   if Trim(Request.GetFieldByName('Access-Control-Request-Headers')) <> '' then
+    Response.SetCustomHeader('Access-Control-Allow-Headers', Request.GetFieldByName('Access-Control-Request-Headers'))
+  else
+    Response.SetCustomHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  Response.SetCustomHeader('Access-Control-Expose-Headers', '*');
+
+  if Request.Method = 'OPTIONS' then
   begin
-    Response.SetCustomHeader('Access-Control-Allow-Headers', Request.GetFieldByName('Access-Control-Request-Headers'));
+    Response.StatusCode := 200;
     Handled := True;
+    Exit;
   end;
 end;
+
+
 procedure TwebPCMModul.dsSrvClassAuthGetClass(DSServerClass: TDSServerClass; var PersistentClass: TPersistentClass);
 begin
   PersistentClass := PCMService.vers0.v0;

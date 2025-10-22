@@ -13,14 +13,6 @@ object PCM_Restserver: TPCM_Restserver
     Left = 840
     Top = 420
   end
-  object FDManager: TFDManager
-    FormatOptions.AssignedValues = [fvMapRules]
-    FormatOptions.OwnMapRules = True
-    FormatOptions.MapRules = <>
-    Active = True
-    Left = 492
-    Top = 24
-  end
   object FDGUIxWaitCursor1: TFDGUIxWaitCursor
     Provider = 'Forms'
     Left = 300

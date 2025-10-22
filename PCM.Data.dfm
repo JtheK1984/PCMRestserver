@@ -39,18 +39,16 @@ object dm_PCM: Tdm_PCM
     Left = 912
     Top = 287
   end
-  object qry_work1: TFDQuery
-    Connection = con_PCM
-    SQL.Strings = (
-      '')
-    Left = 216
-    Top = 228
-  end
-  object qry_Service: TFDQuery
-    Connection = con_PCM
-    SQL.Strings = (
-      '')
-    Left = 144
-    Top = 144
+  object FDManager: TFDManager
+    DriverDefFileAutoLoad = False
+    ConnectionDefFileAutoLoad = False
+    FormatOptions.AssignedValues = [fvMapRules]
+    FormatOptions.OwnMapRules = True
+    FormatOptions.MapRules = <>
+    ResourceOptions.AssignedValues = [rvAutoReconnect]
+    ResourceOptions.AutoReconnect = True
+    Active = True
+    Left = 492
+    Top = 24
   end
 end

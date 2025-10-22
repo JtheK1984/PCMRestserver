@@ -7,7 +7,7 @@
         <MainSource>PCMRestserver.dpr</MainSource>
         <Base>True</Base>
         <Config Condition="'$(Config)'==''">Debug</Config>
-        <Platform Condition="'$(Platform)'==''">Win32</Platform>
+        <Platform Condition="'$(Platform)'==''">Win64</Platform>
         <TargetedPlatforms>3</TargetedPlatforms>
         <AppType>Application</AppType>
         <ProjectName Condition="'$(ProjectName)'==''">PCMRestserver</ProjectName>
@@ -140,6 +140,7 @@ $(PreBuildEvent)]]></PreBuildEvent>
         <Icon_MainIcon>PCMService_Icon.ico</Icon_MainIcon>
         <DCC_OutputDRCFile>true</DCC_OutputDRCFile>
         <VerInfo_Keys>CompanyName=PCM;FileVersion=1.6.0.1;InternalName=PCM Service 64-Bit;LegalCopyright=Jens Henske;LegalTrademarks=;OriginalFilename=PCM Service 64-Bit;ProductName=$(MSBuildProjectName) 64-Bit;ProductVersion=1.6;Comments=011023;ProgramID=com.embarcadero.$(MSBuildProjectName);FileDescription=$(MSBuildProjectName)</VerInfo_Keys>
+        <DCC_ExeOutput>C:\Program Files\PCM\PCM-Restserver\</DCC_ExeOutput>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_2)'!=''">
         <DCC_LocalDebugSymbols>false</DCC_LocalDebugSymbols>
@@ -182,6 +183,7 @@ $(PreBuildEvent)]]></PreBuildEvent>
         <DCCReference Include="Helper\PCMService.API.Methods.pas"/>
         <DCCReference Include="Helper\RESTServer.Service.Records.pas"/>
         <DCCReference Include="Modules\PCM.Restserver.Strings.pas"/>
+        <DCCReference Include="Helper\PCM.Calc.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>
@@ -227,8 +229,8 @@ $(PreBuildEvent)]]></PreBuildEvent>
                     <VersionInfoKeys Name="Comments"/>
                 </VersionInfoKeys>
                 <Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\dclofficexp290.bpl">Microsoft Office XP Beispiele für gekapselte Komponenten für Automation Server</Excluded_Packages>
                     <Excluded_Packages Name="$(BDSBIN)\dcloffice2k290.bpl">Microsoft Office 2000 Beispiele für gekapselte Komponenten für Automatisierungsserver</Excluded_Packages>
+                    <Excluded_Packages Name="$(BDSBIN)\dclofficexp290.bpl">Microsoft Office XP Beispiele für gekapselte Komponenten für Automation Server</Excluded_Packages>
                 </Excluded_Packages>
                 <Source>
                     <Source Name="MainSource">PCMRestserver.dpr</Source>
@@ -237,6 +239,18 @@ $(PreBuildEvent)]]></PreBuildEvent>
             <Deployment Version="5">
                 <DeployFile LocalName="..\ZMICommon\Helper\MD5.PAS" Configuration="Debug" Class="ProjectFile"/>
                 <DeployFile LocalName="..\ZMICommon\Helper\MD5.PAS" Configuration="Release" Class="ProjectFile"/>
+                <DeployFile LocalName="C:\Program Files\PCM\PCM-Restserver\PCMRestserver.exe" Configuration="Debug" Class="ProjectOutput">
+                    <Platform Name="Win64">
+                        <RemoteName>PCMRestserver.exe</RemoteName>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="C:\Program Files\PCM\PCM-Restserver\PCMRestserver.rsm" Configuration="Debug" Class="DebugSymbols">
+                    <Platform Name="Win64">
+                        <RemoteName>PCMRestserver.rsm</RemoteName>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
                 <DeployFile LocalName="Win32\Debug\PCMRestserver.exe" Configuration="Debug" Class="ProjectOutput"/>
                 <DeployFile LocalName="Win32\Debug\PCMRestserver.exe" Configuration="Debug" Class="ProjectOutput">
                     <Platform Name="Win32">
@@ -1221,35 +1235,35 @@ $(PreBuildEvent)]]></PreBuildEvent>
     <Import Project="$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(PRODUCTVERSION)\UserTools.proj" Condition="Exists('$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(PRODUCTVERSION)\UserTools.proj')"/>
     <Import Project="$(MSBuildProjectName).deployproj" Condition="Exists('$(MSBuildProjectName).deployproj')"/>
     <PropertyGroup Condition="'$(Config)'=='Debug' And '$(Platform)'=='Win32'">
-        <PreBuildEvent>sc stop PCM_Restserver&amp;PCM-Functions\PCMIncrementBuildNumber.exe Versioninfo32.rc &amp;Del Versioninfo32.res&amp;BRCC32.exe Versioninfo32.rc</PreBuildEvent>
+        <PreBuildEvent>sc stop PCM_Restserver&amp;PCM-Functions\PCMIncrementBuildNumber.exe Versioninfo32.rc &amp;Del Versioninfo32.res&amp;BRCC32.exe Versioninfo32.rc</PreBuildEvent>
         <PreBuildEventIgnoreExitCode>True</PreBuildEventIgnoreExitCode>
         <PreLinkEvent/>
         <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-        <PostBuildEvent>sc start PCM_Restserver</PostBuildEvent>
+        <PostBuildEvent>sc start PCM_Restserver</PostBuildEvent>
         <PostBuildEventIgnoreExitCode>True</PostBuildEventIgnoreExitCode>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Debug' And '$(Platform)'=='Win64'">
-        <PreBuildEvent>sc stop PCM_Restserver&amp;PCM-Functions\PCMIncrementBuildNumber.exe Versioninfo64.rc&amp;Del Versioninfo64.res&amp;BRCC32.exe Versioninfo64.rc</PreBuildEvent>
+        <PreBuildEvent>sc stop PCM_Restserver&amp;PCM-Functions\PCMIncrementBuildNumber.exe Versioninfo64.rc&amp;Del Versioninfo64.res&amp;BRCC32.exe Versioninfo64.rc</PreBuildEvent>
         <PreBuildEventIgnoreExitCode>True</PreBuildEventIgnoreExitCode>
         <PreLinkEvent/>
         <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-        <PostBuildEvent>sc start PCM_Restserver</PostBuildEvent>
+        <PostBuildEvent>sc start PCM_Restserver</PostBuildEvent>
         <PostBuildEventIgnoreExitCode>True</PostBuildEventIgnoreExitCode>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Release' And '$(Platform)'=='Win32'">
-        <PreBuildEvent>sc stop PCM_Restserver&amp;PCM-Functions\PCMIncrementBuildNumber.exe Versioninfo32.rc &amp;Del Versioninfo32.res&amp;BRCC32.exe Versioninfo32.rc</PreBuildEvent>
+        <PreBuildEvent>sc stop PCM_Restserver&amp;PCM-Functions\PCMIncrementBuildNumber.exe Versioninfo32.rc &amp;Del Versioninfo32.res&amp;BRCC32.exe Versioninfo32.rc</PreBuildEvent>
         <PreBuildEventIgnoreExitCode>True</PreBuildEventIgnoreExitCode>
         <PreLinkEvent/>
         <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-        <PostBuildEvent>sc start PCM_Restserver</PostBuildEvent>
+        <PostBuildEvent>sc start PCM_Restserver</PostBuildEvent>
         <PostBuildEventIgnoreExitCode>True</PostBuildEventIgnoreExitCode>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Release' And '$(Platform)'=='Win64'">
-        <PreBuildEvent>sc stop PCM_Restserver&amp;PCM-Functions\PCMIncrementBuildNumber.exe Versioninfo64.rc&amp;Del Versioninfo64.res&amp;BRCC32.exe Versioninfo64.rc</PreBuildEvent>
+        <PreBuildEvent>sc stop PCM_Restserver&amp;PCM-Functions\PCMIncrementBuildNumber.exe Versioninfo64.rc&amp;Del Versioninfo64.res&amp;BRCC32.exe Versioninfo64.rc</PreBuildEvent>
         <PreBuildEventIgnoreExitCode>True</PreBuildEventIgnoreExitCode>
         <PreLinkEvent/>
         <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-        <PostBuildEvent>sc start PCM_Restserver</PostBuildEvent>
+        <PostBuildEvent>sc start PCM_Restserver</PostBuildEvent>
         <PostBuildEventIgnoreExitCode>True</PostBuildEventIgnoreExitCode>
     </PropertyGroup>
 </Project>

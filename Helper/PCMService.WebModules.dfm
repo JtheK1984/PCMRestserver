@@ -29,6 +29,7 @@ object webPCMModul: TwebPCMModul
   object dsSrvClassAuth: TDSServerClass
     OnGetClass = dsSrvClassAuthGetClass
     Server = DSServer1
+    LifeCycle = 'Invocation'
     Left = 156
     Top = 17
   end
@@ -39,12 +40,13 @@ object webPCMModul: TwebPCMModul
     Filters = <>
     AuthenticationManager = authMngr
     WebDispatch.PathInfo = 'PCM/sandbox-api*'
-    Left = 276
-    Top = 101
+    Left = 244
+    Top = 133
   end
   object dsSrvClassService_V1: TDSServerClass
     OnGetClass = dsSrvClassService_V1GetClass
     Server = DSServer1
+    LifeCycle = 'Invocation'
     Left = 276
     Top = 17
   end

@@ -12,7 +12,8 @@ uses
   PCMService.vers0 in 'Helper\PCMService.vers0.pas',
   PCMService.API.Methods in 'Helper\PCMService.API.Methods.pas',
   RESTServer.Service.Records in 'Helper\RESTServer.Service.Records.pas',
-  PCM.Restserver.Strings in 'Modules\PCM.Restserver.Strings.pas';
+  PCM.Restserver.Strings in 'Modules\PCM.Restserver.Strings.pas',
+  PCM.Calc in 'Helper\PCM.Calc.pas';
 
 {$R *.RES}
 

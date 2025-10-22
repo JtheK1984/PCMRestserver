@@ -37,7 +37,6 @@ type
     procedure ResultToJSONContent(const AJSONObject: TJSONObject);
   public
     { Public-Deklarationen }
-
     ////////////////////////////////////////////////////////////////////////////
     // PCM - RESTfunktionen                                                   //
     ////////////////////////////////////////////////////////////////////////////
@@ -80,6 +79,35 @@ type
 //    [TRoleAuth('WebAPI_PCM')]
 //    function GetMonthValues(AID_Benutzer: Integer): TDataset;
     {$EndRegion TimeAPP-API}
+    ////////////////////////////////////////////////////////////////////////////
+    // Web-APP - RESTfunktionen                                               //
+    ////////////////////////////////////////////////////////////////////////////
+    {$Region Web-APP-API}
+    [TRoleAuth('WebAPI_PCM')]
+    function UpdateGetLogin: TJSonObject;
+    [TRoleAuth('WebAPI_PCM')]
+    function UpdateGetEmployee: TJSonObject;
+    [TRoleAuth('WebAPI_PCM')]
+    function UpdateGetBookingData: TJSonObject;
+    [TRoleAuth('WebAPI_PCM')]
+    function UpdateGetMonthYearValues: TJSonObject;
+    [TRoleAuth('WebAPI_PCM')]
+    function UpdateGetFehltage: TJSonObject;
+    [TRoleAuth('WebAPI_PCM')]
+    function UpdateGetFeiertage: TJSonObject;
+    [TRoleAuth('WebAPI_PCM')]
+    function UpdateGetLastBook: TJSonObject;
+    [TRoleAuth('WebAPI_PCM')]
+    function AcceptSetLastBook(const AJSONObject: TJSONObject): TJSonObject;
+    [TRoleAuth('WebAPI_PCM')]
+    function UpdateGetOnlineBook: TJSonObject;
+    [TRoleAuth('WebAPI_PCM')]
+    function AcceptSetOnlineBook(const AJSONObject: TJSONObject): TJSonObject;
+    [TRoleAuth('WebAPI_PCM')]
+    function UpdateCalcMonth: TJSonObject;
+    [TRoleAuth('WebAPI_PCM')]
+    function UpdateGetAbsenceDays: TJSonObject;
+    {$EndRegion Web-APP-API}
     ////////////////////////////////////////////////////////////////////////////
     // APP - RESTfunktionen                                                   //
     ////////////////////////////////////////////////////////////////////////////
@@ -148,7 +176,6 @@ implementation
 uses
   {$Region Uses}
   PCM.Data,
-  PCM.Functions,
   PCMService.API.Methods,
   PCMService.WebModules;
   {$EndRegion Uses}
@@ -156,7 +183,6 @@ uses
 // Hilfsfunktionen                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 {$Region Hilfsfunktionen}
-  // Ergebnis in JSON umwandeln
 procedure v1.ResultToJSONContent(const AJSONObject: TJSONObject);
 var
   metaData: TDSInvocationMetadata;
@@ -170,8 +196,6 @@ end;
 // PCM - RESTfunktionen                                                       //
 ////////////////////////////////////////////////////////////////////////////////
 {$Region Web-Api}
-// PCM - Token
-// Token erstellen
 function v1.Createtoken: TJSONObject;
 var
   metaData: TDSInvocationMetadata;
@@ -182,7 +206,6 @@ begin
   metaData.ResponseMessage:= sMessage;
   ResultToJSONContent(Result);
 end;
-// Token erneuern
 function v1.AcceptRefreshtoken(const AJSONObject: TJSONObject): TJSONObject;
 var
   metaData: TDSInvocationMetadata;
@@ -193,7 +216,6 @@ begin
   metaData.ResponseMessage:= sMessage;
   ResultToJSONContent(Result);
 end;
-// Token löschen
 function v1.CancelDeletetoken: TJSONObject;
 var
   metaData: TDSInvocationMetadata;
@@ -212,8 +234,6 @@ begin
   metaData.ResponseMessage:= sMessage;
   ResultToJSONContent(Result);
 end;
-// PCM - Backup
-// Backuperstellen
 function v1.UpdateCreateBackup: TJSONObject;
 var
   metaData: TDSInvocationMetadata;
@@ -231,7 +251,6 @@ begin
   end;
   ResultToJSONContent(Result);
 end;
-// Kalenderkonfiguration ermitteln
 function v1.UpdateGetKalenderConfig(const AJSONObject: TJSONObject): TJSONObject;
 begin
   Result := GetKalenderConfig_Intern(AJSONObject);
@@ -242,20 +261,17 @@ end;
 // APP - RESTfunktionen                                                       //
 ////////////////////////////////////////////////////////////////////////////////
 {$Region APP-Api}
-// Server und Login Prüfen
 {$Region Server_Login}
 function v1.CheckServer: TJSonObject;
 begin
   Result:= CheckServer_Intern;
   ResultToJSONContent(Result);
 end;
-// Login prüfen
 function v1.CheckLogin: TJSonObject;
 begin
   Result:= CheckLogin_Intern;
   ResultToJSONContent(Result);
 end;
-// Token übernehmen
 function v1.acceptSetDeviceID(const AJSONObject: TJSONObject): TJSonObject;
 var
   metaData: TDSInvocationMetadata;
@@ -273,9 +289,7 @@ begin
   ResultToJSONContent(Result);
 end;
 {$ENdRegion Server_Login}
-// Kontakte
 {$Region Kontakte}
-// Kontakte ermitteln
 function v1.UpdateGetContacts: TJSonObject;
 var
   metaData: TDSInvocationMetadata;
@@ -299,7 +313,6 @@ begin
   end;
   ResultToJSONContent(Result);
 end;
-// Kontakte übernhmen
 function v1.acceptSetContacts(const AJSONObject: TJSONObject): TJSonObject;
 var
   metaData: TDSInvocationMetadata;
@@ -310,12 +323,26 @@ begin
     if metaData.QueryParams.Count = 1 then
     begin
       metaData.ResponseCode:= 200;
-      Result:= SetKontakte_Intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]), AJSONObject);
+      Result:= SetKontakte_Intern(
+        StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]),
+        false,
+        AJSONObject);
     end
     else
     begin
-      metaData.ResponseCode:= 400;
-      Result:= SetKontakte_Intern('',AJSONObject);
+      if metaData.QueryParams.Count = 2 then
+      begin
+        metaData.ResponseCode:= 200;
+        Result:= SetKontakte_Intern(
+          StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]),
+          true,
+          AJSONObject);
+      end
+      else
+      begin
+        metaData.ResponseCode:= 400;
+        Result:= SetKontakte_Intern('',false,AJSONObject);
+      end;
     end;
   end
   else begin
@@ -325,9 +352,7 @@ begin
   ResultToJSONContent(Result);
 end;
 {$EndRegion Kontakte}
-// Kalender
 {$Region Kalender}
-// Kalender ermitteln
 function v1.UpdateGetCalendar: TJSonObject;
 var
   metaData: TDSInvocationMetadata;
@@ -351,7 +376,6 @@ begin
   end;
   ResultToJSONContent(Result);
 end;
-// Kalender übernehmen
 function v1.AcceptSetCalendar(const AJSONObject: TJSONObject): TJSonObject;
 var
   metaData: TDSInvocationMetadata;
@@ -359,15 +383,18 @@ begin
   metaData := GetInvocationMetadata;
   if CheckUser then
   begin
-    if metaData.QueryParams.Count = 1 then
+    if metaData.QueryParams.Count = 2 then
     begin
       metaData.ResponseCode:= 200;
-      Result:= SetKalender_Intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]), AJSONObject);
+      Result:= SetKalender_Intern(
+        StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]),
+        StrTobool(StringReplace(metaData.QueryParams[1],'test=','',[rfReplaceAll,rfIgnoreCase])),
+        AJSONObject);
     end
     else
     begin
       metaData.ResponseCode:= 400;
-      Result:= SetKalender_Intern('',AJSONObject);
+      Result:= SetKalender_Intern('',false,AJSONObject);
     end;
   end
   else begin
@@ -377,9 +404,7 @@ begin
   ResultToJSONContent(Result);
 end;
 {$EndRegion Kalender}
-// Passwörter
 {$Region Passwords}
-// Passwörter ermitteln
 function v1.UpdateGetPasswords: TJSonObject;
 var
   metaData: TDSInvocationMetadata;
@@ -403,7 +428,6 @@ begin
   end;
   ResultToJSONContent(Result);
 end;
-// Passwörter übernehmen
 function v1.AcceptSetPasswords(const AJSONObject: TJSONObject): TJSonObject;
 var
   metaData: TDSInvocationMetadata;
@@ -414,24 +438,36 @@ begin
     if metaData.QueryParams.Count = 1 then
     begin
       metaData.ResponseCode:= 200;
-      Result:= SetPasswoerter_Intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]), AJSONObject);
+      Result:= SetPasswoerter_Intern(
+        StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]),
+        false,
+        AJSONObject);
     end
     else
     begin
-      metaData.ResponseCode:= 400;
-      Result:= SetPasswoerter_Intern('',AJSONObject);
+      if metaData.QueryParams.Count = 2 then
+      begin
+        metaData.ResponseCode:= 200;
+        Result:= SetPasswoerter_Intern(
+          StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]),
+          true,
+          AJSONObject);
+      end
+      else
+      begin
+        metaData.ResponseCode:= 400;
+        Result:= SetPasswoerter_Intern('',false,AJSONObject);
+      end;
     end;
   end
   else begin
     metaData.ResponseCode:= 401;
     Result:= BadRequest;
   end;
-  ResultToJSONContent(Result);
+  ResultToJSONContent(Result)
 end;
 {$EndRegion Passwords}
-// Serials
 {$Region Serials}
-// Serials ermitteln
 function v1.UpdateGetSerials: TJSONObject;
 var
   metaData: TDSInvocationMetadata;
@@ -455,7 +491,6 @@ begin
   end;
   ResultToJSONContent(Result);
 end;
-// Serials übernehmen
 function v1.AcceptSetSerials(const AJSONObject: TJSONObject): TJSonObject;
 var
   metaData: TDSInvocationMetadata;
@@ -466,24 +501,36 @@ begin
     if metaData.QueryParams.Count = 1 then
     begin
       metaData.ResponseCode:= 200;
-      Result:= SetSerials_Intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]), AJSONObject);
+      Result:= SetSerials_Intern(
+        StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]),
+        false,
+        AJSONObject);
     end
     else
     begin
-      metaData.ResponseCode:= 400;
-      Result:= SetSerials_Intern('',AJSONObject);
+      if metaData.QueryParams.Count = 2 then
+      begin
+        metaData.ResponseCode:= 200;
+        Result:= SetSerials_Intern(
+          StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]),
+          true,
+          AJSONObject);
+      end
+      else
+      begin
+        metaData.ResponseCode:= 400;
+        Result:= SetSerials_Intern('',false,AJSONObject);
+      end;
     end;
   end
   else begin
     metaData.ResponseCode:= 401;
     Result:= BadRequest;
   end;
-  ResultToJSONContent(Result);
+  ResultToJSONContent(Result)
 end;
 {$ENdRegion Serials}
-// Einnahmen
 {$Region Einnahmen}
-// Einnahmen ermitteln
 function v1.UpdateGetReceipts: TJSONObject;
 var
   metaData: TDSInvocationMetadata;
@@ -507,7 +554,6 @@ begin
   end;
   ResultToJSONContent(Result);
 end;
-// Einnahmen übernehmen
 function v1.AcceptSetReceipts(const AJSONObject: TJSONObject): TJSonObject;
 var
   metaData: TDSInvocationMetadata;
@@ -518,24 +564,36 @@ begin
     if metaData.QueryParams.Count = 1 then
     begin
       metaData.ResponseCode:= 200;
-      Result:= SetEinnahmen_Intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]), AJSONObject);
+      Result:= SetEinnahmen_Intern(
+        StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]),
+        false,
+        AJSONObject);
     end
     else
     begin
-      metaData.ResponseCode:= 400;
-      Result:= SetEinnahmen_Intern('',AJSONObject);
+      if metaData.QueryParams.Count = 2 then
+      begin
+        metaData.ResponseCode:= 200;
+        Result:= SetEinnahmen_Intern(
+          StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]),
+          true,
+          AJSONObject);
+      end
+      else
+      begin
+        metaData.ResponseCode:= 400;
+        Result:= SetEinnahmen_Intern('',false,AJSONObject);
+      end;
     end;
   end
   else begin
     metaData.ResponseCode:= 401;
     Result:= BadRequest;
   end;
-  ResultToJSONContent(Result);
+  ResultToJSONContent(Result)
 end;
 {$EndRegion Einnahmen}
-// Ausgaben
 {$Region Ausgaben}
-// Ausgaben ermitteln
 function v1.UpdateGetExpenditure: TJSONObject;
 var
   metaData: TDSInvocationMetadata;
@@ -559,7 +617,6 @@ begin
   end;
   ResultToJSONContent(Result);
 end;
-// Ausgaben übernehmen
 function v1.AcceptSetExpenditure(const AJSONObject: TJSONObject): TJSonObject;
 var
   metaData: TDSInvocationMetadata;
@@ -570,24 +627,36 @@ begin
     if metaData.QueryParams.Count = 1 then
     begin
       metaData.ResponseCode:= 200;
-      Result:= SetAusgaben_Intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]), AJSONObject);
+      Result:= SetAusgaben_Intern(
+        StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]),
+        false,
+        AJSONObject);
     end
     else
     begin
-      metaData.ResponseCode:= 400;
-      Result:= SetAusgaben_Intern('',AJSONObject);
+      if metaData.QueryParams.Count = 2 then
+      begin
+        metaData.ResponseCode:= 200;
+        Result:= SetAusgaben_Intern(
+          StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]),
+          true,
+          AJSONObject);
+      end
+      else
+      begin
+        metaData.ResponseCode:= 400;
+        Result:= SetAusgaben_Intern('',false,AJSONObject);
+      end;
     end;
   end
   else begin
     metaData.ResponseCode:= 401;
     Result:= BadRequest;
   end;
-  ResultToJSONContent(Result);
+  ResultToJSONContent(Result)
 end;
 {$EndRegion Ausgaben}
-// Belege
 {$Region Belege}
-// Belege ermitteln
 function v1.UpdateGetVouchers: TJSONObject;
 var
   metaData: TDSInvocationMetadata;
@@ -611,7 +680,6 @@ begin
   end;
   ResultToJSONContent(Result);
 end;
-// Belege übernehmen
 function v1.AcceptSetVouchers(const AJSONObject: TJSONObject): TJSONObject;
 var
   metaData: TDSInvocationMetadata;
@@ -622,24 +690,36 @@ begin
     if metaData.QueryParams.Count = 1 then
     begin
       metaData.ResponseCode:= 200;
-      Result:= SetVouchers_Intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]), AJSONObject);
+      Result:= SetVouchers_Intern(
+        StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]),
+        false,
+        AJSONObject);
     end
     else
     begin
-      metaData.ResponseCode:= 400;
-      Result:= SetVouchers_Intern('',AJSONObject);
+      if metaData.QueryParams.Count = 2 then
+      begin
+        metaData.ResponseCode:= 200;
+        Result:= SetVouchers_Intern(
+          StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]),
+          true,
+          AJSONObject);
+      end
+      else
+      begin
+        metaData.ResponseCode:= 400;
+        Result:= SetVouchers_Intern('',false,AJSONObject);
+      end;
     end;
   end
   else begin
     metaData.ResponseCode:= 401;
     Result:= BadRequest;
   end;
-  ResultToJSONContent(Result);
+  ResultToJSONContent(Result)
 end;
 {$EndRegion Belege}
-// Gutscheine
 {$Region Gutscheine}
-// Gutscheine ermitteln
 function v1.UpdateGetGiftCards: TJSONObject;
 var
   metaData: TDSInvocationMetadata;
@@ -663,7 +743,6 @@ begin
   end;
   ResultToJSONContent(Result);
 end;
-// Gutscheine übernehmen
 function v1.AcceptSetGiftCards(const AJSONObject: TJSONObject): TJSONObject;
 var
   metaData: TDSInvocationMetadata;
@@ -674,30 +753,43 @@ begin
     if metaData.QueryParams.Count = 1 then
     begin
       metaData.ResponseCode:= 200;
-      Result:= SetGiftCards_Intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]), AJSONObject);
+      Result:= SetGiftCards_Intern(
+        StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]),
+        false,
+        AJSONObject);
     end
     else
     begin
-      metaData.ResponseCode:= 400;
-      Result:= SetGiftCards_Intern('',AJSONObject);
+      if metaData.QueryParams.Count = 2 then
+      begin
+        metaData.ResponseCode:= 200;
+        Result:= SetGiftCards_Intern(
+          StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]),
+          true,
+          AJSONObject);
+      end
+      else
+      begin
+        metaData.ResponseCode:= 400;
+        Result:= SetGiftCards_Intern('',false,AJSONObject);
+      end;
     end;
   end
   else begin
     metaData.ResponseCode:= 401;
     Result:= BadRequest;
   end;
-  ResultToJSONContent(Result);
+  ResultToJSONContent(Result)
 end;
 {$EndRegion Gutscheine}
 {$EndRegion APP-Api}
 {$Region TimeAPP-Api}
-// Personaldaten ermitteln
 function v1.UpdateGetContactsZE: TJSonObject;
 var
   metaData: TDSInvocationMetadata;
 begin
   metaData := GetInvocationMetadata;
-  if CheckUser then
+  if CheckUserApp then
   begin
     if metaData.QueryParams.Count = 1 then
     begin
@@ -715,13 +807,12 @@ begin
   end;
   ResultToJSONContent(Result);
 end;
-// Letzte Buchung ermitteln
 function v1.UpdateGetLastBooking: TJSonObject;
 var
   metaData: TDSInvocationMetadata;
 begin
   metaData := GetInvocationMetadata;
-  if CheckUser then
+  if CheckUserApp then
   begin
     if metaData.QueryParams.Count = 1 then
     begin
@@ -739,7 +830,6 @@ begin
   end;
   ResultToJSONContent(Result);
 end;
-// Letzte Buchung übernehmen
 function v1.AcceptSetLastBooking(const AJSONObject: TJSONObject): TJSonObject;
 var
   metaData: TDSInvocationMetadata;
@@ -750,27 +840,40 @@ begin
     if metaData.QueryParams.Count = 1 then
     begin
       metaData.ResponseCode:= 200;
-      Result:= SetLastBooking_Intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]), AJSONObject);
+      Result:= SetLastBooking_Intern(
+        StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]),
+        false,
+        AJSONObject);
     end
     else
     begin
-      metaData.ResponseCode:= 400;
-      Result:= SetLastBooking_Intern('',AJSONObject);
+      if metaData.QueryParams.Count = 2 then
+      begin
+        metaData.ResponseCode:= 200;
+        Result:= SetLastBooking_Intern(
+          StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]),
+          true,
+          AJSONObject);
+      end
+      else
+      begin
+        metaData.ResponseCode:= 400;
+        Result:= SetLastBooking_Intern('',false,AJSONObject);
+      end;
     end;
   end
   else begin
     metaData.ResponseCode:= 401;
     Result:= BadRequest;
   end;
-  ResultToJSONContent(Result);
+  ResultToJSONContent(Result)
 end;
-// Buchungen Jahr ermitteln
 function v1.UpdateGetBookingYear: TJSonObject;
 var
   metaData: TDSInvocationMetadata;
 begin
   metaData := GetInvocationMetadata;
-  if CheckUser then
+  if CheckUserApp then
   begin
     if metaData.QueryParams.Count = 2 then
     begin
@@ -788,13 +891,12 @@ begin
   end;
   ResultToJSONContent(Result);
 end;
-// Fehltagekonfig ermitteln
 function v1.UpdateGetAbsenceconfig: TJSonObject;
 var
   metaData: TDSInvocationMetadata;
 begin
   metaData := GetInvocationMetadata;
-  if CheckUser then
+  if CheckUserApp then
   begin
     if metaData.QueryParams.Count = 1 then
     begin
@@ -812,13 +914,12 @@ begin
   end;
   ResultToJSONContent(Result);
 end;
-// Fehltage ermitteln
 function v1.UpdateGetAbsence: TJSonObject;
 var
   metaData: TDSInvocationMetadata;
 begin
   metaData := GetInvocationMetadata;
-  if CheckUser then
+  if CheckUserApp then
   begin
     if metaData.QueryParams.Count = 1 then
     begin
@@ -836,7 +937,6 @@ begin
   end;
   ResultToJSONContent(Result);
 end;
-// OnlineBuchung schreiben
 function v1.AcceptSetOnlineBooking(const AJSONObject: TJSONObject): TJSonObject;
 var
   metaData: TDSInvocationMetadata;
@@ -846,12 +946,59 @@ begin
   begin
     if metaData.QueryParams.Count = 1 then
     begin
-      Result := SetOnlineBooking_Intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]), AJSONObject);
+      metaData.ResponseCode:= 200;
+      Result:= SetOnlineBooking_Intern(
+        StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]),
+        false,
+        AJSONObject);
+    end
+    else
+    begin
+      if metaData.QueryParams.Count = 2 then
+      begin
+        metaData.ResponseCode:= 200;
+        Result:= SetOnlineBooking_Intern(
+          StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]),
+          true,
+          AJSONObject);
+      end
+      else
+      begin
+        metaData.ResponseCode:= 400;
+        Result:= SetOnlineBooking_Intern('',false,AJSONObject);
+      end;
+    end;
+  end
+  else begin
+    metaData.ResponseCode:= 401;
+    Result:= BadRequest;
+  end;
+  ResultToJSONContent(Result)
+end;
+{$EndRegion TimeAPP-Api}
+////////////////////////////////////////////////////////////////////////////////
+// Web-APP - RESTfunktionen                                                   //
+////////////////////////////////////////////////////////////////////////////////
+function v1.UpdateGetLogin: TJSonObject;
+begin
+  Result:= GetLoginWeb_Intern;
+  ResultToJSONContent(Result);
+end;
+function v1.UpdateGetEmployee: TJSonObject;
+var
+  metaData: TDSInvocationMetadata;
+begin
+  metaData := GetInvocationMetadata;
+  if CheckUserWeb then
+  begin
+    if metaData.QueryParams.Count = 1 then
+    begin
+      Result := GetPersonalWeb_intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]));
     end
     else
     begin
       metaData.ResponseCode:= 400;
-      Result := SetOnlineBooking_Intern('',AJSONObject);
+      Result := GetPersonalWeb_intern('');
     end;
   end
   else begin
@@ -860,6 +1007,276 @@ begin
   end;
   ResultToJSONContent(Result);
 end;
-{$EndRegion TimeAPP-Api}
+function v1.UpdateGetBookingData: TJSonObject;
+var
+  metaData: TDSInvocationMetadata;
+begin
+  metaData := GetInvocationMetadata;
+  if CheckUserWeb then
+  begin
+    if metaData.QueryParams.Count = 1 then
+    begin
+      Result := GetBookinDataWeb_intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]));
+    end
+    else
+    begin
+      metaData.ResponseCode:= 400;
+      Result := GetBookinDataWeb_intern('');
+    end;
+  end
+  else begin
+    metaData.ResponseCode:= 401;
+    Result:= BadRequest;
+  end;
+  ResultToJSONContent(Result);
+end;
+function v1.UpdateGetMonthYearValues: TJSonObject;
+var
+  metaData: TDSInvocationMetadata;
+begin
+  metaData := GetInvocationMetadata;
+  if CheckUserWeb then
+  begin
+    if metaData.QueryParams.Count = 3 then
+    begin
+      Result := GetMonthYearValuesWeb_intern(
+      StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]),
+      StrToint(StringReplace(metaData.QueryParams[1],'Month=','',[rfReplaceAll,rfIgnoreCase])),
+      StrToint(StringReplace(metaData.QueryParams[2],'Year=','',[rfReplaceAll,rfIgnoreCase])));
+    end
+    else
+    begin
+      metaData.ResponseCode:= 400;
+      Result := GetMonthYearValuesWeb_intern('',0,0);
+    end;
+  end
+  else begin
+    metaData.ResponseCode:= 401;
+    Result:= BadRequest;
+  end;
+  ResultToJSONContent(Result);
+end;
+function v1.UpdateGetFehltage: TJSonObject;
+var
+  metaData: TDSInvocationMetadata;
+begin
+  metaData := GetInvocationMetadata;
+  if CheckUserWeb then
+  begin
+    if metaData.QueryParams.Count = 1 then
+    begin
+      Result := GetFehltageWeb_intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]));
+    end
+    else
+    begin
+      metaData.ResponseCode:= 400;
+      Result := GetFehltageWeb_intern('');
+    end;
+  end
+  else begin
+    metaData.ResponseCode:= 401;
+    Result:= BadRequest;
+  end;
+  ResultToJSONContent(Result);
+end;
+function v1.UpdateGetFeiertage: TJSonObject;
+var
+  metaData: TDSInvocationMetadata;
+begin
+  metaData := GetInvocationMetadata;
+  if CheckUserWeb then
+  begin
+    if metaData.QueryParams.Count = 1 then
+    begin
+      Result := GetFeiertageWeb_intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]));
+    end
+    else
+    begin
+      metaData.ResponseCode:= 400;
+      Result := GetFeiertageWeb_intern('');
+    end;
+  end
+  else begin
+    metaData.ResponseCode:= 401;
+    Result:= BadRequest;
+  end;
+  ResultToJSONContent(Result);
+end;
+function v1.UpdateGetLastBook: TJSonObject;
+var
+  metaData: TDSInvocationMetadata;
+begin
+  metaData := GetInvocationMetadata;
+  if CheckUserWeb then
+  begin
+    if metaData.QueryParams.Count = 1 then
+    begin
+      Result := GetLastBookingWeb_Intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]));
+    end
+    else
+    begin
+      metaData.ResponseCode:= 400;
+      Result := GetLastBookingWeb_Intern('');
+    end;
+  end
+  else begin
+    metaData.ResponseCode:= 401;
+    Result:= BadRequest;
+  end;
+  ResultToJSONContent(Result);
+end;
+function v1.AcceptSetLastBook(const AJSONObject: TJSONObject): TJSonObject;
+var
+  metaData: TDSInvocationMetadata;
+begin
+  metaData := GetInvocationMetadata;
+  if CheckUser then
+  begin
+    if metaData.QueryParams.Count = 1 then
+    begin
+      metaData.ResponseCode:= 200;
+      Result:= SetLastBookingWeb_Intern(
+        StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]),
+        false,
+        AJSONObject);
+    end
+    else
+    begin
+      if metaData.QueryParams.Count = 2 then
+      begin
+        metaData.ResponseCode:= 200;
+        Result:= SetLastBookingWeb_Intern(
+          StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]),
+          true,
+          AJSONObject);
+      end
+      else
+      begin
+        metaData.ResponseCode:= 400;
+        Result:= SetLastBookingWeb_Intern('',false,AJSONObject);
+      end;
+    end;
+  end
+  else begin
+    metaData.ResponseCode:= 401;
+    Result:= BadRequest;
+  end;
+  ResultToJSONContent(Result)
+end;
+function v1.UpdateGetOnlineBook: TJSonObject;
+var
+  metaData: TDSInvocationMetadata;
+begin
+  metaData := GetInvocationMetadata;
+  if CheckUserWeb then
+  begin
+    if metaData.QueryParams.Count = 1 then
+    begin
+      Result := GetBookingWeb_Intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]));
+    end
+    else
+    begin
+      metaData.ResponseCode:= 400;
+      Result := GetBookingWeb_Intern('');
+    end;
+  end
+  else begin
+    metaData.ResponseCode:= 401;
+    Result:= BadRequest;
+  end;
+  ResultToJSONContent(Result);
+end;
+function v1.AcceptSetOnlineBook(const AJSONObject: TJSONObject): TJSonObject;
+var
+  metaData: TDSInvocationMetadata;
+begin
+  metaData := GetInvocationMetadata;
+  if CheckUser then
+  begin
+    if metaData.QueryParams.Count = 1 then
+    begin
+      metaData.ResponseCode:= 200;
+      Result:= SetOnlineBookingWeb_Intern(
+        StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]),
+        false,
+        AJSONObject);
+    end
+    else
+    begin
+      if metaData.QueryParams.Count = 2 then
+      begin
+        metaData.ResponseCode:= 200;
+        Result:= SetOnlineBookingWeb_Intern(
+          StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]),
+          true,
+          AJSONObject);
+      end
+      else
+      begin
+        metaData.ResponseCode:= 400;
+        Result:= SetOnlineBookingWeb_Intern('',false,AJSONObject);
+      end;
+    end;
+  end
+  else begin
+    metaData.ResponseCode:= 401;
+    Result:= BadRequest;
+  end;
+  ResultToJSONContent(Result)
+end;
+function v1.UpdateCalcMonth: TJSonObject;
+var
+  metaData: TDSInvocationMetadata;
+begin
+  metaData := GetInvocationMetadata;
+  if CheckUserWeb then
+  begin
+    if metaData.QueryParams.Count = 3 then
+    begin
+      Result := CalcBookingWeb_Intern(
+      StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]),
+      StrToint(StringReplace(metaData.QueryParams[1],'Month=','',[rfReplaceAll,rfIgnoreCase])),
+      StrToint(StringReplace(metaData.QueryParams[2],'Year=','',[rfReplaceAll,rfIgnoreCase])));
+    end
+    else
+    begin
+      metaData.ResponseCode:= 400;
+      Result := CalcBookingWeb_Intern('',0,0);
+    end;
+  end
+  else begin
+    metaData.ResponseCode:= 401;
+    Result:= BadRequest;
+  end;
+  ResultToJSONContent(Result);
+end;
+function v1.UpdateGetAbsenceDays: TJSonObject;
+var
+  metaData: TDSInvocationMetadata;
+begin
+  metaData := GetInvocationMetadata;
+  if CheckUserWeb then
+  begin
+    if metaData.QueryParams.Count = 3 then
+    begin
+      Result := GetAbsenceWeb_intern(
+      StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]),
+      StrToint(StringReplace(metaData.QueryParams[1],'Month=','',[rfReplaceAll,rfIgnoreCase])),
+      StrToint(StringReplace(metaData.QueryParams[2],'Year=','',[rfReplaceAll,rfIgnoreCase])));
+    end
+    else
+    begin
+      metaData.ResponseCode:= 400;
+      Result := GetAbsenceWeb_intern('',0,0);
+    end;
+  end
+  else begin
+    metaData.ResponseCode:= 401;
+    Result:= BadRequest;
+  end;
+  ResultToJSONContent(Result);
+end;
+
+
 end.
 

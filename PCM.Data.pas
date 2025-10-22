@@ -60,8 +60,7 @@ type
     FDPhysMSSQLDriverLink1: TFDPhysMSSQLDriverLink;
     FDPhysADSDriverLink1: TFDPhysADSDriverLink;
     qry_work: TFDQuery;
-    qry_work1: TFDQuery;
-    qry_Service: TFDQuery;
+    FDManager: TFDManager;
     procedure con_PCMBeforeConnect(Sender: TObject);
   private
     { Private-Deklarationen }
@@ -78,6 +77,7 @@ var
   arRestParam: TPCMRestParamter;
   icode: integer;
   sMessage: String;
+  procedure WriteLog(AProgram, ALogString: String; AError: integer);
   {$EndRegion var}
 const
   {$Region const}
@@ -99,7 +99,6 @@ implementation
 {$R *.dfm}
 uses
   {$Region Uses}
-  PCM.Functions,
   PCM.Strings,
   PCMService.vers0,
   RESTServer.Service.Version.vers1;
@@ -108,50 +107,116 @@ uses
 // Datamodulfunctions                                                         //
 ////////////////////////////////////////////////////////////////////////////////
 {$Region Datamodul}
+procedure WriteLog(AProgram, ALogString: String; AError: integer);
+var
+  tfLog: TextFile;
+  sTag,sError: String;
+  sLogLine: String;
+  sFilePath: String;
+begin
+  case DayOfWeek(Date) of
+  1: sTag := 'So';
+  2: sTag := 'Mo';
+  3: sTag := 'Di';
+  4: sTag := 'Mi';
+  5: sTag := 'Do';
+  6: sTag := 'Fr';
+  7: sTag := 'Sa';
+  end;
+
+  case AError of
+  0: sError := 'Hinweis: ';
+  1: sError := 'Warnung: ';
+  2: sError := 'Fehler: ';
+
+  end;
+  if not DirectoryExists(GetEnvironmentVariable('LOCALAPPDATA') + '\PCM') then
+    CreateDir(GetEnvironmentVariable('LOCALAPPDATA') + '\PCM');
+
+  if (AProgram = 'PCMRestserver') or (AProgram = 'PCMService') or (AProgram = 'PCMAppserver') or (AProgram = 'PCMBackupService')then
+    sFilePath := ExtractFilePath(paramstr(0)) + AProgram + sTag + '.log'
+  else
+    sFilePath := GetEnvironmentVariable('LOCALAPPDATA') + '\PCM\'+ AProgram + sTag + '.log';
+  sLogLine := DateTimeToStr(Now()) + ' ' + sError;
+  AssignFile(tfLog, sFilePath);
+  if FileExists(sFilePath) then
+    Append(tfLog)
+  else
+    Rewrite(tfLog);
+  Writeln(tfLog, sLogLine + ALogString);
+  CloseFile(tfLog);
+end;
+
 procedure Tdm_PCM.con_PCMBeforeConnect(Sender: TObject);
 begin
-  con_PCM.LoginPrompt := False;
-  con_PCM.Params.Clear;
-  case iDBType of
-    DB_MYSQL:
-    begin
-      con_PCM.Params.Add('Database=pcm');
-      con_PCM.Params.Add('User_Name=root');
-      con_PCM.Params.Add('Password=pcm');
-      con_PCM.Params.Add('Server='+ sServer);
-      con_PCM.Params.Add('Port=3307');
-      con_PCM.Params.Add('DriverID=MySQL');
-    end;
-    DB_MSSQL:
-    begin
-      con_PCM.Params.Add('OSAuthent=No');
-      con_PCM.Params.Add('User_Name=sa');
-      con_PCM.Params.Add('Password=Nh2020+5');
-      con_PCM.Params.Add('Server='+ sServer);
-      con_PCM.Params.Add('Database=pcm');
-      con_PCM.Params.Add('DriverID=MSSQL');
-    end;
-    DB_ADS:
-     begin
-      con_PCM.Params.Add('Alias=pcm');
-      con_PCM.Params.Add('ServerTypes=REMOTE|LOCAL');
-      con_PCM.Params.Add('User_Name=adssys');
-      con_PCM.Params.Add('Password=pcm');
-      con_PCM.Params.Add('DriverID=ADS');
-     end;
-  end;
+//  con_PCM.LoginPrompt := False;
+//  con_PCM.Params.Clear;
+//  case iDBType of
+//    DB_MYSQL:
+//    begin
+////      con_PCM.Params.Add('Database=pcm');
+////      con_PCM.Params.Add('User_Name=root');
+////      con_PCM.Params.Add('Password=pcm');
+////      con_PCM.Params.Add('Server='+ sServer);
+////      con_PCM.Params.Add('Port=3307');
+////      con_PCM.Params.Add('DriverID=MySQL');
+////      con_PCM.Params.Add('Pooled=True');
+////      con_PCM.Params.Add('POOL_MaximumItems=50');
+////      con_PCM.Params.Add('POOL_ExpireTimeout=600000');
+//    end;
+//    DB_MSSQL:
+//    begin
+//      con_PCM.Params.Add('OSAuthent=No');
+//      con_PCM.Params.Add('User_Name=sa');
+//      con_PCM.Params.Add('Password=Nh2020+5');
+//      con_PCM.Params.Add('Server='+ sServer);
+//      con_PCM.Params.Add('Database=pcm');
+//      con_PCM.Params.Add('DriverID=MSSQL');
+////    con_PCM.Params.Add('Pooled=True');
+////      con_PCM.Params.Add('POOL_MaximumItems=50');
+////      con_PCM.Params.Add('POOL_ExpireTimeout=600000');
+//    end;
+//    DB_ADS:
+//     begin
+//      con_PCM.Params.Add('Alias=pcm');
+//      con_PCM.Params.Add('ServerTypes=REMOTE|LOCAL');
+//      con_PCM.Params.Add('User_Name=adssys');
+//      con_PCM.Params.Add('Password=pcm');
+//      con_PCM.Params.Add('DriverID=ADS');
+//      con_PCM.Params.Add('Pooled=True');
+////      con_PCM.Params.Add('POOL_MaximumItems=50');
+////      con_PCM.Params.Add('POOL_ExpireTimeout=600000');
+//     end;
+//  end;
 end;
 function Tdm_PCM.ReadServerAdress: boolean;
+  function ConnectionDefExists(const AName: string): Boolean;
+  var
+    i: Integer;
+  begin
+    Result := False;
+    for i := 0 to FDManager.ConnectionDefs.Count - 1 do
+      if SameText(FDManager.ConnectionDefs[i].Name, AName) then
+        Exit(True);
+  end;
 var
+  ConnDef: IFDStanConnectionDef;
+  Params: TStrings;
   iniFile: TIniFile;
 begin
+
   result:= false;
   iniFile:=TIniFile.create(ExtractFilePath(ParamStr(0)) + 'PCMRestserver.ini');
   sServer:= iniFile.ReadString('Config','Server','localhost');
   iDBType:=iniFile.ReadInteger('Database','Type',0);
   iniFile.Free;
   try
-    con_PCM.Params.Values['Server'] := sServer;
+
+    FDManager.ConnectionDefFileName :=  'FD.ini';
+    FDManager.ConnectionDefFileAutoLoad := True;
+    FDManager.Active := True;
+    con_pcm.Params.Clear;
+    con_PCM.ConnectionDefName := 'PCM';
     try
       WriteLog(PCM_logname, rs_Function_Helper_Verbindungsversuch1 + ' 1 PCM',0);
       con_PCM.Connected:= True;
@@ -175,7 +240,7 @@ begin
         end;
       end;
     end;
-		qry_work.Connection:= Con_PCM;
+//		qry_work.Connection:= Con_PCM;
 		WriteLog(PCM_LOGname,rs_Function_Helper_Verbindungerfolgreich,0);
   except
 		Writelog(PCM_Logname,rs_Function_Helper_KeineVerbindung1 + sServer + rs_Function_Helper_KeineVerbindung2,2);
