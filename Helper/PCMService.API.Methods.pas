@@ -1076,7 +1076,7 @@ begin
       qry_Work := TFDQuery.Create(nil);
       try
         qry_Work.Connection := conn; // Muss gepoolt und threadsicher sein
-        qry_Work.sql.text:= 'SELECT ID,Benutzer, Passwort FROM time_user WHERE Benutzer = :User and Zugriff_app = true';
+        qry_Work.sql.text:= 'SELECT ID,Benutzer, Passwort, Zugriff_app FROM time_user WHERE Benutzer = :User';
         qry_Work.ParamByName('User').AsString := sUser;
         qry_Work.Open;
         if qry_Work.RecordCount > 0 then
@@ -1085,7 +1085,7 @@ begin
             jaDetails := TJSONArray.Create;
           if not Assigned(joResponseJSONData) then
             joResponseJSONData := TJSONObject.Create;
-          if (sPass = qry_Work.FieldByName('Passwort').AsString) AND (qry_Work.FieldByName('RestAPI').AsBoolean = True) then
+          if (sPass = qry_Work.FieldByName('Passwort').AsString) AND (qry_Work.FieldByName('Zugriff_app').AsBoolean = True) then
           begin
             iCode:= 200;
             sMessage:= 'OK';
