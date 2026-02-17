@@ -3416,7 +3416,7 @@ begin
         for var JSonValue in jaDetails do
         begin
           JSonValue.TryGetValue<string>('LastBooking',sLastBooking);
-          qry_Work.SQL.Text:=  'SELECT COUNT(*) as Anzahl FROM manager_message where ID_Benutzer = :ID_Benutzer';
+          qry_Work.SQL.Text:=  'SELECT COUNT(*) as Anzahl FROM time_message where ID_Benutzer = :ID_Benutzer';
           qry_Work.ParamByName('ID_Benutzer').AsInteger := StrToInt(AID_Benutzer);
           qry_Work.Open;
           iAnzahl:= qry_Work.FieldByName('Anzahl').asInteger;
