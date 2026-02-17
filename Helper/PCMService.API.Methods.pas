@@ -3416,19 +3416,22 @@ begin
         for var JSonValue in jaDetails do
         begin
           JSonValue.TryGetValue<string>('LastBooking',sLastBooking);
-          qry_Work.SQL.Text:=  'SELECT COUNT(*) as Anzahl FROM manager_message ';
+          qry_Work.SQL.Text:=  'SELECT COUNT(*) as Anzahl FROM manager_message where ID_Benutzer = :ID_Benutzer';
+          qry_Work.ParamByName('ID_Benutzer').AsInteger := StrToInt(AID_Benutzer);
           qry_Work.Open;
           iAnzahl:= qry_Work.FieldByName('Anzahl').asInteger;
           qry_Work.Close;
           if iAnzahl = 0 then
           begin
-            qry_Work.SQL.Text:=  'INSERT INTO time_message (Text) Values (:Text)';
+            qry_Work.SQL.Text:=  'INSERT INTO time_message (Text,ID_Benutzer) Values (:Text,:ID_Benutzer)';
             qry_Work.ParamByName('Text').AsString:= sLastBooking;
+                      qry_Work.ParamByName('ID_Benutzer').AsInteger := StrToInt(AID_Benutzer);
             qry_Work.ExecSQL;
           end
           else begin
-            qry_Work.SQL.Text:=  'Update time_message SET Text = :Text';
+            qry_Work.SQL.Text:=  'Update time_message SET Text = :Text where ID_Benutzer = :ID_Benutzer';
             qry_Work.ParamByName('Text').AsString:= sLastBooking;
+            qry_Work.ParamByName('ID_Benutzer').AsInteger := StrToInt(AID_Benutzer);
             qry_Work.ExecSQL;
           end;
         end;
