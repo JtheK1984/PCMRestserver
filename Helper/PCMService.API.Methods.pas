@@ -355,7 +355,7 @@ begin
         qry_Work.Open;
 
         if qry_Work.RecordCount > 0 then
-          if (sPass = qry_Work.FieldByName('Passwort').AsString) and (qry_Work.FieldByName('RestAPI').AsBoolean) then
+          if (sPass = qry_Work.FieldByName('Passwort').AsString) and (qry_Work.FieldByName('Zugriff_App').AsBoolean) then
             Result := true;
       except
         on E: Exception do
