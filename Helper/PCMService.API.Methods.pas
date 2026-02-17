@@ -87,6 +87,7 @@ uses
   {$Region APP_API_PCM}
   function Checkserver_Intern: TJSONObject;
   function CheckLogin_Intern: TJSONObject;
+  function CheckLoginTime_Intern: TJSONObject;
   function SetDeviceID_Intern(const AJSONObject: TJSONObject): TJSONObject;
   function GetKontakte_Intern(AID_Benutzer:   string): TJSONObject;
   function SetKontakte_Intern(AID_Benutzer:   string; ATest: Boolean; const AJSONObject: TJSONObject): TJSONObject;
@@ -989,6 +990,93 @@ begin
       try
         qry_Work.Connection := conn; // Muss gepoolt und threadsicher sein
         qry_Work.sql.text:= 'SELECT ID,Benutzer, Passwort, RestApi FROM Benutzer WHERE Benutzer = :User';
+        qry_Work.ParamByName('User').AsString := sUser;
+        qry_Work.Open;
+        if qry_Work.RecordCount > 0 then
+        begin
+          if not Assigned(jaDetails) then
+            jaDetails := TJSONArray.Create;
+          if not Assigned(joResponseJSONData) then
+            joResponseJSONData := TJSONObject.Create;
+          if (sPass = qry_Work.FieldByName('Passwort').AsString) AND (qry_Work.FieldByName('RestAPI').AsBoolean = True) then
+          begin
+            iCode:= 200;
+            sMessage:= 'OK';
+            joResponseJSON.AddPair(TJSONPair.Create('HasError',TJSONBool.Create(false)));
+            joResponseJSON.AddPair(TJSONPair.Create('ErrorCode',TJSONNumber.Create(0)));
+            joResponseJSON.AddPair(TJSONPair.Create('Errormessage',TJSONString.Create('')));
+            joResponseJSONData.AddPair(TJSONPair.Create('Allowed', TJSONBool.Create(True)));
+            joResponseJSONData.AddPair(TJSONPair.Create('ID_User', TJSONNumber.Create(qry_Work.FieldByName('ID').asInteger)));
+            joResponseJSON.AddPair(TJSONPair.Create('User', sUser));
+            joResponseJSON.AddPair(TJSONPair.Create('Password', sPass));
+            jaDetails.Add(joResponseJSONData);
+            joResponseJSONData:= nil;
+          end else
+          begin
+            iCode:= 401;
+            sMessage:= 'Unauthorized';
+            joResponseJSON.AddPair(TJSONPair.Create('HasError',TJSONBool.Create(true)));
+            joResponseJSON.AddPair(TJSONPair.Create('ErrorCode',TJSONNumber.Create(1)));
+            joResponseJSON.AddPair(TJSONPair.Create('Errormessage',TJSONString.Create('Benutzer ' + sUSer + ' nicht berechtigt')));
+            joResponseJSONData.AddPair(TJSONPair.Create('Allowed', TJSONBool.Create(False)));
+            joResponseJSONData.AddPair(TJSONPair.Create('ID_User', TJSONNumber.Create(qry_Work.FieldByName('ID').asInteger)));
+            joResponseJSON.AddPair(TJSONPair.Create('User', sUser));
+            joResponseJSON.AddPair(TJSONPair.Create('Password', sPass));
+            jaDetails.Add(joResponseJSONData);
+            joResponseJSONData:= nil;
+          end;
+          joResponseJSON.AddPair(TJSONPair.Create('Login', jaDetails));
+        end
+        else begin
+          iCode:= 200;
+          sMessage:= 'OK';
+          joResponseJSON.AddPair(TJSONPair.Create('HasError',TJSONBool.Create(true)));
+          joResponseJSON.AddPair(TJSONPair.Create('ErrorCode',TJSONNumber.Create(1)));
+          joResponseJSON.AddPair(TJSONPair.Create('Errormessage',TJSONString.Create('Keine Datensätze vorhanden')));
+        end;
+        Result := joResponseJSON;
+      finally
+        qry_work.free;
+      end;
+    finally
+      conn.free;
+    end;
+  except
+    on e:exception do
+    begin
+      iCode:= 409;
+      sMessage:= 'Database Error';
+      joResponseJSON.AddPair(TJSONPair.Create('HasError',TJSONBool.Create(true)));
+      joResponseJSON.AddPair(TJSONPair.Create('ErrorCode',TJSONNumber.Create(2)));
+      joResponseJSON.AddPair(TJSONPair.Create('Errormessage',TJSONString.Create('Keine Verbindung zur Datenbank. Grund:' + e.Message)));
+      WriteLog(PCM_Logname,'CheckLogin_Intern exception: ' + E.Message, 3);
+    end;
+  end;
+end;
+function CheckLoginTime_Intern: TJSONObject;
+var
+  sUser, sPass: String;
+  qry_Work: TFDQuery;
+  conn: TFDConnection;
+begin
+  WriteLog(PCM_Logname,'CheckLogin_Intern wird ausgeführt', 0);
+  Result:= nil;
+  try
+    joResponseJSON:= nil;
+    joResponseJSONData:= nil;
+    jaDetails:= nil;
+    sUser := TDSSessionManager.GetThreadSession.GetData('Username');
+    sPass := TDSSessionManager.GetThreadSession.GetData('Password');
+    if not Assigned(joResponseJSON) then
+      joResponseJSON := TJSONObject.Create;
+    conn := TFDConnection.Create(nil);
+    try
+      conn.ConnectionDefName := 'PCM';
+      conn.Connected := True;
+      qry_Work := TFDQuery.Create(nil);
+      try
+        qry_Work.Connection := conn; // Muss gepoolt und threadsicher sein
+        qry_Work.sql.text:= 'SELECT ID,Benutzer, Passwort FROM time_user WHERE Benutzer = :User and Zugriff_app = true';
         qry_Work.ParamByName('User').AsString := sUser;
         qry_Work.Open;
         if qry_Work.RecordCount > 0 then
