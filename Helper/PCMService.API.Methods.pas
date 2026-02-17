@@ -3239,7 +3239,7 @@ begin
                                      'LEFT OUTER JOIN time_Geschlecht g ON g.ID = kon.ID_GEschlecht '+
                                      'LEFT OUTER JOIN time_Familienstand f ON f.ID = kon.ID_Familienstand '+
                                      'LEFT OUTER JOIN time_Staatsangehoerigkeit s ON s.ID = kon.ID_Staatsangehoerigkeit '+
-                                     'LEFT OUTER JOIN time_Konfession k ON k.ID = kon.ID_Konfession Where kon.ID_Zeiterfasser = :ID_Benutzer';
+                                     'LEFT OUTER JOIN time_Konfession k ON k.ID = kon.ID_Konfession Where kon.ID = :ID_Benutzer';
         qry_Work.ParamByName('ID_Benutzer').AsInteger := StrToInt(AID_Benutzer);
         qry_Work.Open;
         WriteLog(PCM_Logname,rs_PCMAPPServer_Kontakteanzahl+ IntToStr(qry_Work.RecordCount),0);
