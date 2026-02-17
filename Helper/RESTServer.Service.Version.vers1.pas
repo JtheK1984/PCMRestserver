@@ -276,7 +276,7 @@ begin
 end;
 function v1.CheckLoginTime: TJSonObject;
 begin
-  Result:= CheckLogin_Intern;
+  Result:= CheckLoginTime_Intern;
   ResultToJSONContent(Result);
 end;
 function v1.acceptSetDeviceID(const AJSONObject: TJSONObject): TJSonObject;
