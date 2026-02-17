@@ -3486,7 +3486,8 @@ begin
                                      'Pause2Beginn,Pause2Ende,Sollstunden,SollstundenI,Arbeitszeit,ArbeitszeitI,' +
                                      'Feiertag,Fehltag,Mehrarbeit,MehrarbeitI,Pauseni,FeiertagI,' +
                                      'IFNULL(Abgeschlossen,0) AS Abgeschlossen,Buchungsart, IFNULL(ID_Fehltage,0) AS ID_Fehltage ' +
-                                     'FROM time_buchungen Where Datum >= :Von and Datum <= :Bis';
+                                     'FROM time_buchungen Where ID_Benutzer = :ID_Benutzer and Datum >= :Von and Datum <= :Bis';
+        qry_Work.ParamByName('ID_Benutzer').AsInteger:= StrToInt(AID_Benutzer);
         qry_Work.ParamByName('Von').AsDate:= StartOfAMonth(StrtoInt(AJahr),1);
         qry_Work.ParamByName('Bis').AsDate:= EndOfAMonth(StrtoInt(AJahr),12);
         qry_Work.Open;
@@ -3655,7 +3656,8 @@ begin
       qry_Work := TFDQuery.Create(nil);
       try
         qry_Work.Connection := conn; // Muss gepoolt und threadsicher sein
-        qry_Work.SQL.Text :=  'SELECT * FROM time_fehltage';
+        qry_Work.SQL.Text :=  'SELECT * FROM time_fehltage Where ID_Benutzer = :ID_Benutzer ';
+        qry_work.ParamByName('ID_Benutzer').AsInteger:= StrToInt(AID_Benutzer);
         qry_Work.Open;
         WriteLog(PCM_Logname,'Fehltage laden',0);
         if qry_Work.RecordCount > 0 then
