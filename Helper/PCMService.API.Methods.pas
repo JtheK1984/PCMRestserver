@@ -104,7 +104,9 @@ uses
   function SetVouchers_Intern(AID_Benutzer:   string; ATest: Boolean; const AJSONObject: TJSONObject): TJSONObject;
   function GetGiftCards_Intern(AID_Benutzer:  string): TJSONObject;
   function SetGiftCards_Intern(AID_Benutzer:  string; ATest: Boolean; const AJSONObject: TJSONObject): TJSONObject;
+  {$EndRegion APP_API_PCM}
   {$EndRegion Declare}
+
 var
   {$Region Var}
   joResponseJSON: TJSONObject;
