@@ -118,6 +118,8 @@ type
     [TRoleAuth('WebAPI_PCM')]
     function CheckLogin: TJSonObject;
     [TRoleAuth('WebAPI_PCM')]
+    function CheckLoginTime: TJSonObject;
+    [TRoleAuth('WebAPI_PCM')]
     function AcceptSetDeviceID(const AJSONObject: TJSONObject): TJSonObject;
     // kontakte ermitteln
     [TRoleAuth('WebAPI_PCM')]
@@ -270,6 +272,11 @@ end;
 function v1.CheckLogin: TJSonObject;
 begin
   Result:= CheckLogin_Intern;
+  ResultToJSONContent(Result);
+end;
+function v1.CheckLoginTime: TJSonObject;
+begin
+  Result:= CheckLoginTime_Intern;
   ResultToJSONContent(Result);
 end;
 function v1.acceptSetDeviceID(const AJSONObject: TJSONObject): TJSonObject;

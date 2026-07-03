@@ -87,6 +87,7 @@ uses
   {$Region APP_API_PCM}
   function Checkserver_Intern: TJSONObject;
   function CheckLogin_Intern: TJSONObject;
+  function CheckLoginTime_Intern: TJSONObject;
   function SetDeviceID_Intern(const AJSONObject: TJSONObject): TJSONObject;
   function GetKontakte_Intern(AID_Benutzer:   string): TJSONObject;
   function SetKontakte_Intern(AID_Benutzer:   string; ATest: Boolean; const AJSONObject: TJSONObject): TJSONObject;
@@ -356,7 +357,7 @@ begin
         qry_Work.Open;
 
         if qry_Work.RecordCount > 0 then
-          if (sPass = qry_Work.FieldByName('Passwort').AsString) and (qry_Work.FieldByName('RestAPI').AsBoolean) then
+          if (sPass = qry_Work.FieldByName('Passwort').AsString) and (qry_Work.FieldByName('Zugriff_App').AsBoolean) then
             Result := true;
       except
         on E: Exception do
@@ -1000,6 +1001,93 @@ begin
           if not Assigned(joResponseJSONData) then
             joResponseJSONData := TJSONObject.Create;
           if (sPass = qry_Work.FieldByName('Passwort').AsString) AND (qry_Work.FieldByName('RestAPI').AsBoolean = True) then
+          begin
+            iCode:= 200;
+            sMessage:= 'OK';
+            joResponseJSON.AddPair(TJSONPair.Create('HasError',TJSONBool.Create(false)));
+            joResponseJSON.AddPair(TJSONPair.Create('ErrorCode',TJSONNumber.Create(0)));
+            joResponseJSON.AddPair(TJSONPair.Create('Errormessage',TJSONString.Create('')));
+            joResponseJSONData.AddPair(TJSONPair.Create('Allowed', TJSONBool.Create(True)));
+            joResponseJSONData.AddPair(TJSONPair.Create('ID_User', TJSONNumber.Create(qry_Work.FieldByName('ID').asInteger)));
+            joResponseJSON.AddPair(TJSONPair.Create('User', sUser));
+            joResponseJSON.AddPair(TJSONPair.Create('Password', sPass));
+            jaDetails.Add(joResponseJSONData);
+            joResponseJSONData:= nil;
+          end else
+          begin
+            iCode:= 401;
+            sMessage:= 'Unauthorized';
+            joResponseJSON.AddPair(TJSONPair.Create('HasError',TJSONBool.Create(true)));
+            joResponseJSON.AddPair(TJSONPair.Create('ErrorCode',TJSONNumber.Create(1)));
+            joResponseJSON.AddPair(TJSONPair.Create('Errormessage',TJSONString.Create('Benutzer ' + sUSer + ' nicht berechtigt')));
+            joResponseJSONData.AddPair(TJSONPair.Create('Allowed', TJSONBool.Create(False)));
+            joResponseJSONData.AddPair(TJSONPair.Create('ID_User', TJSONNumber.Create(qry_Work.FieldByName('ID').asInteger)));
+            joResponseJSON.AddPair(TJSONPair.Create('User', sUser));
+            joResponseJSON.AddPair(TJSONPair.Create('Password', sPass));
+            jaDetails.Add(joResponseJSONData);
+            joResponseJSONData:= nil;
+          end;
+          joResponseJSON.AddPair(TJSONPair.Create('Login', jaDetails));
+        end
+        else begin
+          iCode:= 200;
+          sMessage:= 'OK';
+          joResponseJSON.AddPair(TJSONPair.Create('HasError',TJSONBool.Create(true)));
+          joResponseJSON.AddPair(TJSONPair.Create('ErrorCode',TJSONNumber.Create(1)));
+          joResponseJSON.AddPair(TJSONPair.Create('Errormessage',TJSONString.Create('Keine Datensätze vorhanden')));
+        end;
+        Result := joResponseJSON;
+      finally
+        qry_work.free;
+      end;
+    finally
+      conn.free;
+    end;
+  except
+    on e:exception do
+    begin
+      iCode:= 409;
+      sMessage:= 'Database Error';
+      joResponseJSON.AddPair(TJSONPair.Create('HasError',TJSONBool.Create(true)));
+      joResponseJSON.AddPair(TJSONPair.Create('ErrorCode',TJSONNumber.Create(2)));
+      joResponseJSON.AddPair(TJSONPair.Create('Errormessage',TJSONString.Create('Keine Verbindung zur Datenbank. Grund:' + e.Message)));
+      WriteLog(PCM_Logname,'CheckLogin_Intern exception: ' + E.Message, 3);
+    end;
+  end;
+end;
+function CheckLoginTime_Intern: TJSONObject;
+var
+  sUser, sPass: String;
+  qry_Work: TFDQuery;
+  conn: TFDConnection;
+begin
+  WriteLog(PCM_Logname,'CheckLogin_Intern wird ausgeführt', 0);
+  Result:= nil;
+  try
+    joResponseJSON:= nil;
+    joResponseJSONData:= nil;
+    jaDetails:= nil;
+    sUser := TDSSessionManager.GetThreadSession.GetData('Username');
+    sPass := TDSSessionManager.GetThreadSession.GetData('Password');
+    if not Assigned(joResponseJSON) then
+      joResponseJSON := TJSONObject.Create;
+    conn := TFDConnection.Create(nil);
+    try
+      conn.ConnectionDefName := 'PCM';
+      conn.Connected := True;
+      qry_Work := TFDQuery.Create(nil);
+      try
+        qry_Work.Connection := conn; // Muss gepoolt und threadsicher sein
+        qry_Work.sql.text:= 'SELECT ID,Benutzer, Passwort, Zugriff_app FROM time_user WHERE Benutzer = :User';
+        qry_Work.ParamByName('User').AsString := sUser;
+        qry_Work.Open;
+        if qry_Work.RecordCount > 0 then
+        begin
+          if not Assigned(jaDetails) then
+            jaDetails := TJSONArray.Create;
+          if not Assigned(joResponseJSONData) then
+            joResponseJSONData := TJSONObject.Create;
+          if (sPass = qry_Work.FieldByName('Passwort').AsString) AND (qry_Work.FieldByName('Zugriff_app').AsBoolean = True) then
           begin
             iCode:= 200;
             sMessage:= 'OK';
@@ -3153,7 +3241,7 @@ begin
                                      'LEFT OUTER JOIN time_Geschlecht g ON g.ID = kon.ID_GEschlecht '+
                                      'LEFT OUTER JOIN time_Familienstand f ON f.ID = kon.ID_Familienstand '+
                                      'LEFT OUTER JOIN time_Staatsangehoerigkeit s ON s.ID = kon.ID_Staatsangehoerigkeit '+
-                                     'LEFT OUTER JOIN time_Konfession k ON k.ID = kon.ID_Konfession Where kon.ID_Zeiterfasser = :ID_Benutzer';
+                                     'LEFT OUTER JOIN time_Konfession k ON k.ID = kon.ID_Konfession Where kon.ID = :ID_Benutzer';
         qry_Work.ParamByName('ID_Benutzer').AsInteger := StrToInt(AID_Benutzer);
         qry_Work.Open;
         WriteLog(PCM_Logname,rs_PCMAPPServer_Kontakteanzahl+ IntToStr(qry_Work.RecordCount),0);
@@ -3330,19 +3418,22 @@ begin
         for var JSonValue in jaDetails do
         begin
           JSonValue.TryGetValue<string>('LastBooking',sLastBooking);
-          qry_Work.SQL.Text:=  'SELECT COUNT(*) as Anzahl FROM manager_message ';
+          qry_Work.SQL.Text:=  'SELECT COUNT(*) as Anzahl FROM time_message where ID_Benutzer = :ID_Benutzer';
+          qry_Work.ParamByName('ID_Benutzer').AsInteger := StrToInt(AID_Benutzer);
           qry_Work.Open;
           iAnzahl:= qry_Work.FieldByName('Anzahl').asInteger;
           qry_Work.Close;
           if iAnzahl = 0 then
           begin
-            qry_Work.SQL.Text:=  'INSERT INTO time_message (Text) Values (:Text)';
+            qry_Work.SQL.Text:=  'INSERT INTO time_message (Text,ID_Benutzer) Values (:Text,:ID_Benutzer)';
             qry_Work.ParamByName('Text').AsString:= sLastBooking;
+                      qry_Work.ParamByName('ID_Benutzer').AsInteger := StrToInt(AID_Benutzer);
             qry_Work.ExecSQL;
           end
           else begin
-            qry_Work.SQL.Text:=  'Update time_message SET Text = :Text';
+            qry_Work.SQL.Text:=  'Update time_message SET Text = :Text where ID_Benutzer = :ID_Benutzer';
             qry_Work.ParamByName('Text').AsString:= sLastBooking;
+            qry_Work.ParamByName('ID_Benutzer').AsInteger := StrToInt(AID_Benutzer);
             qry_Work.ExecSQL;
           end;
         end;
@@ -3397,7 +3488,8 @@ begin
                                      'Pause2Beginn,Pause2Ende,Sollstunden,SollstundenI,Arbeitszeit,ArbeitszeitI,' +
                                      'Feiertag,Fehltag,Mehrarbeit,MehrarbeitI,Pauseni,FeiertagI,' +
                                      'IFNULL(Abgeschlossen,0) AS Abgeschlossen,Buchungsart, IFNULL(ID_Fehltage,0) AS ID_Fehltage ' +
-                                     'FROM time_buchungen Where Datum >= :Von and Datum <= :Bis';
+                                     'FROM time_buchungen Where ID_Benutzer = :ID_Benutzer and Datum >= :Von and Datum <= :Bis';
+        qry_Work.ParamByName('ID_Benutzer').AsInteger:= StrToInt(AID_Benutzer);
         qry_Work.ParamByName('Von').AsDate:= StartOfAMonth(StrtoInt(AJahr),1);
         qry_Work.ParamByName('Bis').AsDate:= EndOfAMonth(StrtoInt(AJahr),12);
         qry_Work.Open;
@@ -3566,7 +3658,8 @@ begin
       qry_Work := TFDQuery.Create(nil);
       try
         qry_Work.Connection := conn; // Muss gepoolt und threadsicher sein
-        qry_Work.SQL.Text :=  'SELECT * FROM time_fehltage';
+        qry_Work.SQL.Text :=  'SELECT * FROM time_fehltage Where ID_Benutzer = :ID_Benutzer ';
+        qry_work.ParamByName('ID_Benutzer').AsInteger:= StrToInt(AID_Benutzer);
         qry_Work.Open;
         WriteLog(PCM_Logname,'Fehltage laden',0);
         if qry_Work.RecordCount > 0 then
