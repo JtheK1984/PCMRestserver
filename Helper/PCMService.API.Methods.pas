@@ -51,6 +51,12 @@ uses
   function GetKalenderConfig_Intern(const AJSONObject: TJSONObject): TJSONObject;
   {$EndRegion Web_API_PCM}
   //////////////////////////////////////////////////////////////////////////////
+  // Archiv_APP_API_PCM                                                       //
+  //////////////////////////////////////////////////////////////////////////////
+  {$Region Archiv_API_PCM}
+  function GetArchivConfiguration_Intern(const ASection: string): TJSONObject;
+  {$ENDRegion Archiv_API_PCM}
+  //////////////////////////////////////////////////////////////////////////////
   // Time_APP_API_PCM                                                         //
   //////////////////////////////////////////////////////////////////////////////
   {$Region Time_API_PCM}
@@ -3204,6 +3210,120 @@ begin
 end;
 {$EndRegion Gutscheine}
 {$EndRegion APPapi}
+////////////////////////////////////////////////////////////////////////////////
+// Archiv_APP_API_PCM                                                         //
+////////////////////////////////////////////////////////////////////////////////
+{$Region ArchivAPI}
+function GetArchivConfiguration_Intern(const ASection: string): TJSONObject;
+var
+  Connection: TFDConnection;
+  Query: TFDQuery;
+  Response: TJSONObject;
+  procedure AddTable(const AKey, ASQL: string);
+  var
+    Rows: TJSONArray;
+    Row: TJSONObject;
+    Field: TField;
+    StoredPath: string;
+  begin
+    Query.Close;
+    Query.SQL.Text := ASQL;
+    Query.Open;
+    Rows := TJSONArray.Create;
+    Response.AddPair(AKey, Rows);
+    while not Query.Eof do
+    begin
+      Row := TJSONObject.Create;
+      Rows.AddElement(Row);
+      if AKey = 'Documents' then
+      begin
+        StoredPath := Query.FieldByName('Fullpath').AsString;
+        if StartsText('%onedrive%\', StoredPath) then
+          Row.AddPair('OneDriveRelativePath', StringReplace(Copy(StoredPath,12,MaxInt),'\','/',[rfReplaceAll]))
+        else Row.AddPair('OneDriveRelativePath', TJSONNull.Create);
+      end;
+      for Field in Query.Fields do
+        if SameText(Field.FieldName, 'Fullpath') or
+           (Field.DataType in [ftBlob, ftGraphic, ftBytes, ftVarBytes]) then
+          Continue
+        else if Field.IsNull then
+          Row.AddPair(Field.FieldName, TJSONNull.Create)
+        else if Field.DataType in [ftSmallint, ftInteger, ftWord, ftAutoInc, ftLargeint] then
+          Row.AddPair(Field.FieldName, TJSONNumber.Create(Field.AsLargeInt))
+        else
+          Row.AddPair(Field.FieldName, Field.AsString);
+      Query.Next;
+    end;
+  end;
+begin
+  Response := TJSONObject.Create;
+  Connection := nil;
+  Query := nil;
+  try
+    try
+      Connection := TFDConnection.Create(nil);
+      Connection.ConnectionDefName := 'PCM';
+      Connection.Connected := True;
+      Query := TFDQuery.Create(nil);
+      Query.Connection := Connection;
+      if ASection = 'Documents' then
+      begin
+        Query.SQL.Text := 'SELECT r.dm_archiv FROM benutzer b LEFT JOIN rechte r ON r.ID=b.ID_rechte WHERE b.Benutzer=:User';
+        Query.ParamByName('User').AsString := TDSSessionManager.GetThreadSession.GetData('Username');
+        Query.Open;
+        if Query.IsEmpty or not (Query.FieldByName('dm_archiv').AsInteger in [1,2,3]) then
+        begin
+          Response.AddPair('HasError', TJSONBool.Create(True));
+          Response.AddPair('ErrorCode', TJSONNumber.Create(403));
+          Response.AddPair('Errormessage', 'Keine Leseberechtigung fuer das Archiv.');
+          GetInvocationMetadata.ResponseCode := 403;
+          Result := Response;
+          Response := nil;
+          Exit;
+        end;
+        AddTable('Documents', 'SELECT * FROM archiv_files ORDER BY ID');
+      end;
+      if (ASection = '') or (ASection = 'MainCategories') then
+        AddTable('MainCategories', 'SELECT ID, Bezeichnung FROM archiv_konfiguration_hauptkategorien ORDER BY Bezeichnung, ID');
+      if (ASection = '') or (ASection = 'SubCategories') then
+        AddTable('SubCategories', 'SELECT ID, Bezeichnung FROM archiv_konfiguration_unterkategorien ORDER BY Bezeichnung, ID');
+      if (ASection = '') or (ASection = 'Indices') then
+      begin
+        AddTable('Indices', 'SELECT ID, Bezeichnung, ID_archiv_konfiguration_index_typ FROM archiv_konfiguration_index ORDER BY Bezeichnung, ID');
+        AddTable('IndexTypes', 'SELECT ID, Bezeichnung FROM archiv_konfiguration_index_typ ORDER BY ID');
+      end;
+      if (ASection = '') or (ASection = 'Assignments') then
+      begin
+        AddTable('MainCategoryAssignments', 'SELECT ID FROM archiv_konfiguration_zuweisung_hauptkategorien ORDER BY ID');
+        AddTable('SubCategoryAssignments', 'SELECT ID, ID_archiv_konfiguration_hauptkategorien, ID_archiv_konfiguration_unterkategorien FROM archiv_konfiguration_zuweisung_unterkategorien ORDER BY ID');
+        AddTable('IndexAssignments', 'SELECT ID, ID_archiv_konfiguration_unterkategorien, ID_archiv_konfiguration_index FROM archiv_konfiguration_zuweisung_index ORDER BY ID');
+      end;
+      Response.AddPair('HasError', TJSONBool.Create(False));
+      Response.AddPair('ErrorCode', TJSONNumber.Create(0));
+      Response.AddPair('Errormessage', '');
+      GetInvocationMetadata.ResponseCode := 200;
+    except
+      on E: Exception do
+      begin
+        Response.Free;
+        Response := nil;
+        Response := TJSONObject.Create;
+        Response.AddPair('HasError', TJSONBool.Create(True));
+        Response.AddPair('ErrorCode', TJSONNumber.Create(99));
+        Response.AddPair('Errormessage', 'Archiv-Konfiguration konnte nicht geladen werden.');
+        GetInvocationMetadata.ResponseCode := 500;
+        WriteLog(PCM_Logname, 'GetArchivConfiguration_Intern: ' + E.Message, 3);
+      end;
+    end;
+    Result := Response;
+    Response := nil;
+  finally
+    Query.Free;
+    Connection.Free;
+    Response.Free;
+  end;
+end;
+{$ENDRegion ArchivAPI}
 ////////////////////////////////////////////////////////////////////////////////
 // Time_APP_API_PCM                                                           //
 ////////////////////////////////////////////////////////////////////////////////

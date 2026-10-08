@@ -35,6 +35,7 @@ type
   private
     { Private-Deklarationen }
     procedure ResultToJSONContent(const AJSONObject: TJSONObject);
+    function GetArchivSection(const ASection: string): TJSONObject;
   public
     { Public-Deklarationen }
     ////////////////////////////////////////////////////////////////////////////
@@ -116,6 +117,18 @@ type
     [TRoleAuth('WebAPI_PCM')]
     function CheckServer: TJSonObject;
     [TRoleAuth('WebAPI_PCM')]
+    function UpdateGetArchivConfiguration: TJSONObject;
+    [TRoleAuth('WebAPI_PCM')]
+    function UpdateGetArchivMainCategories: TJSONObject;
+    [TRoleAuth('WebAPI_PCM')]
+    function UpdateGetArchivSubCategories: TJSONObject;
+    [TRoleAuth('WebAPI_PCM')]
+    function UpdateGetArchivIndices: TJSONObject;
+    [TRoleAuth('WebAPI_PCM')]
+    function UpdateGetArchivAssignments: TJSONObject;
+    [TRoleAuth('WebAPI_PCM')]
+    function UpdateGetArchivDocuments: TJSONObject;
+    [TRoleAuth('WebAPI_PCM')]
     function CheckLogin: TJSonObject;
     [TRoleAuth('WebAPI_PCM')]
     function CheckLoginTime: TJSonObject;
@@ -185,6 +198,54 @@ uses
 // Hilfsfunktionen                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 {$Region Hilfsfunktionen}
+function v1.GetArchivSection(const ASection: string): TJSONObject;
+var
+  Metadata: TDSInvocationMetadata;
+begin
+  Metadata := GetInvocationMetadata;
+  if CheckUser then
+    Result := GetArchivConfiguration_Intern(ASection)
+  else
+  begin
+    Metadata.ResponseCode := 401;
+    Result := TJSONObject.Create;
+    Result.AddPair('HasError', TJSONBool.Create(True));
+    Result.AddPair('ErrorCode', TJSONNumber.Create(401));
+    Result.AddPair('Errormessage', 'Nicht autorisiert.');
+  end;
+  ResultToJSONContent(Result);
+end;
+
+function v1.UpdateGetArchivConfiguration: TJSONObject;
+begin
+  Result := GetArchivSection('');
+end;
+
+function v1.UpdateGetArchivMainCategories: TJSONObject;
+begin
+  Result := GetArchivSection('MainCategories');
+end;
+
+function v1.UpdateGetArchivSubCategories: TJSONObject;
+begin
+  Result := GetArchivSection('SubCategories');
+end;
+
+function v1.UpdateGetArchivIndices: TJSONObject;
+begin
+  Result := GetArchivSection('Indices');
+end;
+
+function v1.UpdateGetArchivDocuments: TJSONObject;
+begin
+  Result := GetArchivSection('Documents');
+end;
+
+function v1.UpdateGetArchivAssignments: TJSONObject;
+begin
+  Result := GetArchivSection('Assignments');
+end;
+
 procedure v1.ResultToJSONContent(const AJSONObject: TJSONObject);
 var
   metaData: TDSInvocationMetadata;
@@ -1283,7 +1344,5 @@ begin
   end;
   ResultToJSONContent(Result);
 end;
-
-
 end.
 
