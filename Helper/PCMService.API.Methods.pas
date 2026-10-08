@@ -3281,7 +3281,7 @@ begin
           Response := nil;
           Exit;
         end;
-        AddTable('Documents', 'SELECT * FROM archiv_files ORDER BY ID');
+        AddTable('Documents', 'SELECT f.*, b.Benutzer AS BenutzerName FROM archiv_files f LEFT JOIN benutzer b ON b.ID=f.Benutzer ORDER BY f.ID');
       end;
       if (ASection = '') or (ASection = 'MainCategories') then
         AddTable('MainCategories', 'SELECT ID, Bezeichnung FROM archiv_konfiguration_hauptkategorien ORDER BY Bezeichnung, ID');
