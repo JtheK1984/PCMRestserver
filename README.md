@@ -4,6 +4,9 @@
 # Kurzbeschreibung:
   PCM - Restserver
 
+# Beschreibung:
+  Service mit kompletter RestAPI für alle Projekte
+
 # Entwicklungsumgebung:
   DELPHI 12.3 Athens
 
@@ -34,4 +37,4 @@
   - PrepareCopy.cmd (erzeugte Versionen werden in das Inno-Setupverzeichnis abgelgt)
 
 # Stand:
-  12.08.2025
+  12.07.2026
