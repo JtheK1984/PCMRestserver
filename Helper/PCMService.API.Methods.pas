@@ -3237,13 +3237,18 @@ var
       Rows.AddElement(Row);
       if AKey = 'Documents' then
       begin
+        if Query.FieldByName('BenutzerName').IsNull then
+          Row.AddPair('BenutzerName', TJSONNull.Create)
+        else
+          Row.AddPair('BenutzerName', Query.FieldByName('BenutzerName').AsString);
         StoredPath := Query.FieldByName('Fullpath').AsString;
         if StartsText('%onedrive%\', StoredPath) then
           Row.AddPair('OneDriveRelativePath', StringReplace(Copy(StoredPath,12,MaxInt),'\','/',[rfReplaceAll]))
         else Row.AddPair('OneDriveRelativePath', TJSONNull.Create);
       end;
       for Field in Query.Fields do
-        if SameText(Field.FieldName, 'Fullpath') or
+        if ((AKey = 'Documents') and SameText(Field.FieldName, 'BenutzerName')) or
+           SameText(Field.FieldName, 'Fullpath') or
            (Field.DataType in [ftBlob, ftGraphic, ftBytes, ftVarBytes]) then
           Continue
         else if Field.IsNull then
