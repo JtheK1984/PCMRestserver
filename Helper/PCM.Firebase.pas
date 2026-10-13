@@ -5,6 +5,7 @@ interface
 uses System.JSON;
 
 function SendFirebaseTest(const ADeviceToken: string): TJSONObject;
+function SendFirebaseNotification(const ADeviceToken, ATitle, ABody: string): TJSONObject;
 
 implementation
 
@@ -97,9 +98,9 @@ begin
   end;
 end;
 
-function SendFirebaseTest(const ADeviceToken: string): TJSONObject;
+function SendFirebaseNotification(const ADeviceToken, ATitle, ABody: string): TJSONObject;
 var
-  Credentials, Claims, Header, OAuth, Payload, Message, Notification, Android: TJSONObject;
+  Credentials, Claims, Header, OAuth, Payload, Message, Notification, Android, AndroidNotification: TJSONObject;
   Client: THTTPClient;
   FileName, ProjectID, Email, PEM, Assertion, AccessToken, MessageID: string;
   IssuedAt: Int64;
@@ -155,11 +156,15 @@ begin
         Message.AddPair('token', ADeviceToken);
         Notification := TJSONObject.Create;
         Message.AddPair('notification', Notification);
-        Notification.AddPair('title', 'App-Benachrichtigung Test');
-        Notification.AddPair('body', 'App-Benachrichtigung Test erfolgreich');
+        Notification.AddPair('title', ATitle);
+        Notification.AddPair('body', ABody);
         Android := TJSONObject.Create;
         Message.AddPair('android', Android);
         Android.AddPair('priority', 'HIGH');
+        Android.AddPair('ttl', '900s');
+        AndroidNotification := TJSONObject.Create;
+        Android.AddPair('notification', AndroidNotification);
+        AndroidNotification.AddPair('channel_id', 'pcm_push');
         OAuth := PostJSON(Client, 'https://fcm.googleapis.com/v1/projects/' + ProjectID + '/messages:send',
           Payload.ToJSON, [TNameValuePair.Create('Content-Type', 'application/json; charset=utf-8'),
           TNameValuePair.Create('Authorization', 'Bearer ' + AccessToken)]);
@@ -183,4 +188,9 @@ begin
   end;
 end;
 
+function SendFirebaseTest(const ADeviceToken: string): TJSONObject;
+begin
+  Result := SendFirebaseNotification(ADeviceToken, 'App-Benachrichtigung Test',
+    'App-Benachrichtigung Test erfolgreich');
+end;
 end.

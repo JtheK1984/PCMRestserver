@@ -4,6 +4,7 @@ interface
 
 uses
   {$Region Ues}
+  PCM.CalendarPush,
   Data.Bind.Components,
   Data.Bind.ObjectScope,
   Data.DB,
@@ -83,7 +84,7 @@ type
     procedure ServiceAfterInstall(Sender: TService);
     procedure IdHTTPServer1QuerySSLPort(APort: Word; var VUseSSL: Boolean);
   private
-    { Private-Deklarationen }
+    FCalendarPushWorker: TCalendarPushWorker;
   public
     { Public-Deklarationen }
     FIOHandleSSL: TIdServerIOHandlerSSLOpenSSL;
@@ -157,6 +158,8 @@ begin
 end;
 procedure TPCM_Restserver.ServiceStop(Sender: TService; var Stopped: Boolean);
 begin
+  tmrServiceStart.Enabled := False;
+  FreeAndNil(FCalendarPushWorker);
   FServer_HTTP.Active := False;
   FServer_HTTPS.Active := False;
   FServer_HTTP.Bindings.Clear;
@@ -243,6 +246,8 @@ begin
       FSSLContext := TMyIdSSLContext(FIOHandleSSL.SSLContext);
       SSL_CTX_set_ecdh_auto(FSSLContext.fContext, 1);
     end;
+    if FCalendarPushWorker = nil then
+      FCalendarPushWorker := TCalendarPushWorker.Create;
   except
     ON Ex: Exception DO
     BEGIN
