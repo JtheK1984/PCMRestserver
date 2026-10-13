@@ -134,6 +134,8 @@ type
     function CheckLoginTime: TJSonObject;
     [TRoleAuth('WebAPI_PCM')]
     function AcceptSetDeviceID(const AJSONObject: TJSONObject): TJSonObject;
+    [TRoleAuth('WebAPI_PCM')]
+    function UpdateSendPushTest(const AJSONObject: TJSONObject): TJSONObject;
     // kontakte ermitteln
     [TRoleAuth('WebAPI_PCM')]
     function UpdateGetContacts: TJSonObject;
@@ -192,6 +194,8 @@ uses
   {$Region Uses}
   PCM.Data,
   PCMService.API.Methods,
+  PCM.Firebase,
+  FireDAC.Comp.Client,
   PCMService.WebModules;
   {$EndRegion Uses}
 ////////////////////////////////////////////////////////////////////////////////
@@ -338,6 +342,54 @@ end;
 function v1.CheckLoginTime: TJSonObject;
 begin
   Result:= CheckLoginTime_Intern;
+  ResultToJSONContent(Result);
+end;
+function v1.UpdateSendPushTest(const AJSONObject: TJSONObject): TJSONObject;
+var
+  Token, UserName: string;
+  Conn: TFDConnection;
+  Query: TFDQuery;
+begin
+  if not CheckUser then
+  begin
+    GetInvocationMetadata.ResponseCode := 401;
+    Result := BadRequest;
+    ResultToJSONContent(Result);
+    Exit;
+  end;
+  Result := nil;
+  try
+    if (AJSONObject = nil) or not AJSONObject.TryGetValue<string>('DeviceToken', Token) or (Trim(Token) = '') then
+      raise Exception.Create('DeviceToken fehlt');
+    UserName := TDSSessionManager.GetThreadSession.GetData('Username');
+    Conn := TFDConnection.Create(nil);
+    try
+      Conn.ConnectionDefName := 'PCM';
+      Conn.Connected := True;
+      Query := TFDQuery.Create(nil);
+      try
+        Query.Connection := Conn;
+        Query.SQL.Text := 'SELECT d.DeviceToken FROM manager_devices d JOIN Benutzer b ON b.ID = d.ID_Benutzer WHERE b.Benutzer = :Benutzer AND d.DeviceToken = :Token';
+        Query.ParamByName('Benutzer').AsString := UserName;
+        Query.ParamByName('Token').AsString := Token;
+        Query.Open;
+        if Query.IsEmpty then
+          raise Exception.Create('Geraet nicht fuer diesen Benutzer registriert. Bitte zuerst die App synchronisieren.');
+      finally
+        Query.Free;
+      end;
+    finally
+      Conn.Free;
+    end;
+    Result := SendFirebaseTest(Token);
+  except
+    on E: Exception do
+    begin
+      Result := TJSONObject.Create;
+      Result.AddPair('success', TJSONBool.Create(False));
+      Result.AddPair('Errormessage', E.Message);
+    end;
+  end;
   ResultToJSONContent(Result);
 end;
 function v1.acceptSetDeviceID(const AJSONObject: TJSONObject): TJSonObject;

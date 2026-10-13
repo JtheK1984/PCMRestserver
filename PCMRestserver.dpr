@@ -2,6 +2,7 @@ program PCMRestserver;
 
 uses
   Vcl.SvcMgr,
+  PCM.Firebase in 'Helper\PCM.Firebase.pas',
   Web.WebReq,
   Windows,
   IdHTTPWebBrokerBridge,
