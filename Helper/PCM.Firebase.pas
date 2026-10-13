@@ -5,7 +5,8 @@ interface
 uses System.JSON;
 
 function SendFirebaseTest(const ADeviceToken: string): TJSONObject;
-function SendFirebaseNotification(const ADeviceToken, ATitle, ABody: string): TJSONObject;
+function SendFirebaseNotification(const ADeviceToken, ATitle, ABody: string;
+  const ACredentialsVariable: string = 'GOOGLE_APPLICATION_CREDENTIALS'): TJSONObject;
 
 implementation
 
@@ -98,16 +99,16 @@ begin
   end;
 end;
 
-function SendFirebaseNotification(const ADeviceToken, ATitle, ABody: string): TJSONObject;
+function SendFirebaseNotification(const ADeviceToken, ATitle, ABody, ACredentialsVariable: string): TJSONObject;
 var
   Credentials, Claims, Header, OAuth, Payload, Message, Notification, Android, AndroidNotification: TJSONObject;
   Client: THTTPClient;
   FileName, ProjectID, Email, PEM, Assertion, AccessToken, MessageID: string;
   IssuedAt: Int64;
 begin
-  FileName := GetEnvironmentVariable('GOOGLE_APPLICATION_CREDENTIALS');
+  FileName := GetEnvironmentVariable(ACredentialsVariable);
   if (FileName = '') or not TFile.Exists(FileName) then
-    raise Exception.Create('Firebase nicht konfiguriert: GOOGLE_APPLICATION_CREDENTIALS muss auf die Service-Account-JSON-Datei zeigen');
+    raise Exception.Create('Firebase nicht konfiguriert: ' + ACredentialsVariable + ' muss auf die Service-Account-JSON-Datei zeigen');
   Credentials := TJSONObject.ParseJSONValue(TFile.ReadAllText(FileName, TEncoding.UTF8)) as TJSONObject;
   if Credentials = nil then
     raise Exception.Create('Firebase: ungueltige Service-Account-Datei');

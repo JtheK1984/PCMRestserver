@@ -136,6 +136,14 @@ type
     function AcceptSetDeviceID(const AJSONObject: TJSONObject): TJSonObject;
     [TRoleAuth('WebAPI_PCM')]
     function UpdateSendPushTest(const AJSONObject: TJSONObject): TJSONObject;
+    [TRoleAuth('WebAPI_PCM')]
+    function UpdateSendTimePushTest(const AJSONObject: TJSONObject): TJSONObject;
+    [TRoleAuth('WebAPI_PCM')]
+    function AcceptSetTimeDeviceID(const AJSONObject: TJSONObject): TJSONObject;
+    [TRoleAuth('WebAPI_PCM')]
+    function UpdateSendArchivPushTest(const AJSONObject: TJSONObject): TJSONObject;
+    [TRoleAuth('WebAPI_PCM')]
+    function AcceptSetArchivDeviceID(const AJSONObject: TJSONObject): TJSONObject;
     // kontakte ermitteln
     [TRoleAuth('WebAPI_PCM')]
     function UpdateGetContacts: TJSonObject;
@@ -195,6 +203,8 @@ uses
   PCM.Data,
   PCMService.API.Methods,
   PCM.Firebase,
+  PCM.TimePush,
+  PCM.ArchivPush,
   FireDAC.Comp.Client,
   PCMService.WebModules;
   {$EndRegion Uses}
@@ -342,6 +352,70 @@ end;
 function v1.CheckLoginTime: TJSonObject;
 begin
   Result:= CheckLoginTime_Intern;
+  ResultToJSONContent(Result);
+end;
+function TimePushResponse(const Request: TJSONObject; RegisterDevice: Boolean): TJSONObject;
+begin
+  if not CheckUserApp then
+  begin
+    GetInvocationMetadata.ResponseCode := 401;
+    Result := BadRequest;
+    Exit;
+  end;
+  try
+    Result := TimePushRequest(Request,RegisterDevice);
+  except on E: Exception do
+    begin
+      Result := TJSONObject.Create;
+      Result.AddPair('success',TJSONBool.Create(False));
+      Result.AddPair('HasError',TJSONBool.Create(True));
+      Result.AddPair('ErrorCode',TJSONNumber.Create(1));
+      Result.AddPair('Errormessage',E.Message);
+    end;
+  end;
+end;
+
+function v1.UpdateSendTimePushTest(const AJSONObject: TJSONObject): TJSONObject;
+begin
+  Result := TimePushResponse(AJSONObject,False);
+  ResultToJSONContent(Result);
+end;
+
+function v1.AcceptSetTimeDeviceID(const AJSONObject: TJSONObject): TJSONObject;
+begin
+  Result := TimePushResponse(AJSONObject,True);
+  ResultToJSONContent(Result);
+end;
+function ArchivPushResponse(const Request: TJSONObject; RegisterDevice: Boolean): TJSONObject;
+begin
+  if not CheckUser then
+  begin
+    GetInvocationMetadata.ResponseCode := 401;
+    Result := BadRequest;
+    Exit;
+  end;
+  try
+    Result := ArchivPushRequest(Request,RegisterDevice);
+  except on E: Exception do
+    begin
+      Result := TJSONObject.Create;
+      Result.AddPair('success',TJSONBool.Create(False));
+      Result.AddPair('HasError',TJSONBool.Create(True));
+      Result.AddPair('ErrorCode',TJSONNumber.Create(1));
+      Result.AddPair('Errormessage',E.Message);
+    end;
+  end;
+end;
+
+function v1.UpdateSendArchivPushTest(const AJSONObject: TJSONObject): TJSONObject;
+begin
+  Result := ArchivPushResponse(AJSONObject,False);
+  ResultToJSONContent(Result);
+end;
+
+function v1.AcceptSetArchivDeviceID(const AJSONObject: TJSONObject): TJSONObject;
+begin
+  Result := ArchivPushResponse(AJSONObject,True);
   ResultToJSONContent(Result);
 end;
 function v1.UpdateSendPushTest(const AJSONObject: TJSONObject): TJSONObject;
