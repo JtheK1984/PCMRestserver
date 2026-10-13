@@ -1,0 +1,16 @@
+-- PREPARED ONLY. Not executed. Target inspected on 2026-09-29:
+-- Windows PCM.ini -> PCM-DEV:3307 / pcm.
+-- Verify that PCMRestserver uses this same database before deployment.
+-- Requires verified backup, staging validation and coordinated client rollout.
+-- Existing columns: VARCHAR(255), nullable, NULL default, utf8mb4,
+-- utf8mb4_0900_ai_ci, no comments/extra attributes or column indexes.
+-- Re-run preflight immediately before applying; stop if metadata differs.
+-- TEXT changes FireDAC field type: validate bound editors and REST mapping.
+-- MySQL DDL must not be treated as a transaction rollback migration.
+-- The proposed statement is commented out to prevent accidental execution.
+
+-- ALTER TABLE `pcm`.`manager_passwoerter`
+--   MODIFY COLUMN `password` TEXT CHARACTER SET utf8mb4
+--     COLLATE utf8mb4_0900_ai_ci NULL,
+--   MODIFY COLUMN `BankingPin` TEXT CHARACTER SET utf8mb4
+--     COLLATE utf8mb4_0900_ai_ci NULL;
