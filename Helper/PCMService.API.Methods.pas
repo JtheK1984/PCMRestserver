@@ -1789,7 +1789,7 @@ begin
                 if iIDCal <> -1 then UpdateFieldValues_Integer('ID_KalenderApp','manager_Kalender',iIDCal,iSyncID);
                 if bCompleteDayCal then UpdateFieldValues_String('CompleteDay','manager_Kalender','True',iSyncID) else UpdateFieldValues_String('CompleteDay','manager_Kalender','False',iSyncID);
                 if bReminderCal then UpdateFieldValues_String('Reminder','manager_Kalender','True',iSyncID) else UpdateFieldValues_String('Reminder','manager_Kalender','False',iSyncID);
-                if iReminderMinutesBeforeStartCal <> 0 then UpdateFieldValues_integer('ReminderMinutesBeforeStart','manager_Kalender',iReminderMinutesBeforeStartCal,iSyncID);
+                UpdateFieldValues_integer('ReminderMinutesBeforeStart','manager_Kalender',iReminderMinutesBeforeStartCal,iSyncID);
                 if sReminderDateCal <> ''  then UpdateFieldValues_TDateTime('ReminderDate','manager_Kalender',StrToDateTime(sReminderDateCal),iSyncID);
                 if sKalendernameCal <> '' then UpdateFieldValues_String('Kalendername','manager_Kalender',sKalendernameCal,iSyncID);
                 UpdateFieldValues_Integer('Typ','manager_Kalender',2,iSyncID);
@@ -1883,7 +1883,7 @@ begin
               if iIDCal <> -1 then UpdateFieldValues_Integer('ID_KalenderApp','manager_Kalender',iIDCal,iSyncID);
               if bCompleteDayCal then UpdateFieldValues_String('CompleteDay','manager_Kalender','True',iSyncID) else UpdateFieldValues_String('CompleteDay','manager_Kalender','False',iSyncID);
               if bReminderCal then UpdateFieldValues_String('Reminder','manager_Kalender','True',iSyncID) else UpdateFieldValues_String('Reminder','manager_Kalender','False',iSyncID);
-              if iReminderMinutesBeforeStartCal <> 0 then UpdateFieldValues_integer('ReminderMinutesBeforeStart','manager_Kalender',iReminderMinutesBeforeStartCal,iSyncID);
+              UpdateFieldValues_integer('ReminderMinutesBeforeStart','manager_Kalender',iReminderMinutesBeforeStartCal,iSyncID);
               if sReminderDateCal <> ''  then UpdateFieldValues_TDateTime('ReminderDate','manager_Kalender',StrToDateTime(sReminderDateCal),iSyncID);
               if sKalendernameCal <> '' then UpdateFieldValues_String('Kalendername','manager_Kalender',sKalendernameCal,iSyncID);
               UpdateFieldValues_Integer('Typ','manager_Kalender',2,iSyncID);

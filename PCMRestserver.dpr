@@ -3,6 +3,8 @@ program PCMRestserver;
 uses
   Vcl.SvcMgr,
   PCM.Firebase in 'Helper\PCM.Firebase.pas',
+  PCM.CalendarPush in 'Helper\PCM.CalendarPush.pas',
+  PCM.ReminderRules in 'Helper\PCM.ReminderRules.pas',
   Web.WebReq,
   Windows,
   IdHTTPWebBrokerBridge,
