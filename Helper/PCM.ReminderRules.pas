@@ -1,4 +1,4 @@
-﻿unit PCM.ReminderRules;
+unit PCM.ReminderRules;
 
 interface
 
@@ -84,16 +84,64 @@ begin
   end;
   Result := (Position > 0) and InNumbers(Positions,Position,Total);
 end;
-function UntilDate(const Text: string): TDateTime;
-var Y, M, D, H, N, S: Word;
+function ParseUntilDay(const Text: string): TDateTime;
+var
+  Y, M, D, MonthDigits, DayDigits, Candidates: Integer;
+  Tail, MonthText, DayText: string;
+  Candidate: TDateTime;
 begin
-  if not (Length(Text) in [8,15,16]) then raise Exception.Create('Ungueltiger UNTIL-Wert');
-  Y := StrToInt(Copy(Text,1,4)); M := StrToInt(Copy(Text,5,2)); D := StrToInt(Copy(Text,7,2));
-  Result := EncodeDate(Y,M,D);
-  if Length(Text) = 8 then Exit(EndOfTheDay(Result));
-  H := StrToInt(Copy(Text,10,2)); N := StrToInt(Copy(Text,12,2)); S := StrToInt(Copy(Text,14,2));
-  Result := Result + EncodeTime(H,N,S,0);
-  if RightStr(Text,1) = 'Z' then Result := TTimeZone.Local.ToLocalTime(Result);
+  if (Length(Text) < 6) or (Length(Text) > 8) or
+    not TryStrToInt(Copy(Text,1,4),Y) then
+    raise Exception.Create('Ungueltiger UNTIL-Datumsteil');
+  Tail := Copy(Text,5,MaxInt);
+  Candidates := 0;
+  Result := 0;
+  for MonthDigits := 1 to 2 do
+  begin
+    DayDigits := Length(Tail) - MonthDigits;
+    if not (DayDigits in [1,2]) then Continue;
+    // Eight-digit dates are standard YYYYMMDD, never a legacy split.
+    if (Length(Text) = 8) and (MonthDigits <> 2) then Continue;
+    MonthText := Copy(Tail,1,MonthDigits);
+    DayText := Copy(Tail,MonthDigits+1,DayDigits);
+    // Legacy writers never padded either component. Do not invent a split.
+    if (Length(Text) < 8) and
+      (((MonthDigits = 2) and (MonthText[1] = '0')) or
+       ((DayDigits = 2) and (DayText[1] = '0'))) then Continue;
+    if TryStrToInt(MonthText,M) and TryStrToInt(DayText,D) and
+      TryEncodeDate(Y,M,D,Candidate) then
+    begin
+      Inc(Candidates);
+      Result := Candidate;
+    end;
+  end;
+  if Candidates = 0 then raise Exception.Create('Ungueltiges UNTIL-Datum');
+  if Candidates > 1 then
+    raise Exception.Create('Mehrdeutiges altes UNTIL-Datum; Datum im Kalender neu speichern');
+end;
+
+function UntilDate(const Text: string): TDateTime;
+var
+  H, N, S: Integer;
+  Separator: Integer;
+  Clock: string;
+  IsUTC: Boolean;
+  TimeValue: TDateTime;
+begin
+  Separator := Pos('T',Text);
+  if Separator = 0 then Exit(EndOfTheDay(ParseUntilDay(Text)));
+  Result := ParseUntilDay(Copy(Text,1,Separator-1));
+  Clock := Copy(Text,Separator+1,MaxInt);
+  IsUTC := EndsText('Z',Clock);
+  if IsUTC then Delete(Clock,Length(Clock),1);
+  if (Length(Clock) <> 6) or
+    not TryStrToInt(Copy(Clock,1,2),H) or
+    not TryStrToInt(Copy(Clock,3,2),N) or
+    not TryStrToInt(Copy(Clock,5,2),S) or
+    not TryEncodeTime(H,N,S,0,TimeValue) then
+    raise Exception.Create('Ungueltiger UNTIL-Zeitteil');
+  Result := Result + TimeValue;
+  if IsUTC then Result := TTimeZone.Local.ToLocalTime(Result);
 end;
 
 function FindDueOccurrence(const AStart, ANow: TDateTime; AMinutesBefore: Integer;

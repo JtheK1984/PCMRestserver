@@ -2,6 +2,7 @@ program PCMRestserver;
 
 uses
   Vcl.SvcMgr,
+  PCMService.Authentication in 'Helper\PCMService.Authentication.pas',
   PCM.Firebase in 'Helper\PCM.Firebase.pas',
   PCM.TimePush in 'Helper\PCM.TimePush.pas',
   PCM.ArchivPush in 'Helper\PCM.ArchivPush.pas',
