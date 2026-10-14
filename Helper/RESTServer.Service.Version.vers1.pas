@@ -200,6 +200,7 @@ implementation
 
 uses
   {$Region Uses}
+  System.Diagnostics,
   PCM.Data,
   PCMService.API.Methods,
   PCM.Firebase,
@@ -212,22 +213,69 @@ uses
 // Hilfsfunktionen                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 {$Region Hilfsfunktionen}
+procedure LogFetchResult(const AApp, AEndpoint: string;
+  const AResult: TJSONObject; const AStarted: TStopwatch);
+var
+  Value: TJSONValue;
+  Details: string;
+  Severity: Integer;
+begin
+  try
+    Details := Format('app=%s endpoint=%s phase=completed duration_ms=%d http=%d',
+      [AApp, AEndpoint, AStarted.ElapsedMilliseconds, GetInvocationMetadata.ResponseCode]);
+    Severity := 0;
+    if GetInvocationMetadata.ResponseCode >= 400 then Severity := 1;
+    if AResult = nil then
+    begin
+      Details := Details + ' result=nil';
+      Severity := 2;
+    end
+    else
+    begin
+      Value := AResult.GetValue('HasError');
+      if Value is TJSONBool then
+      begin
+        Details := Details + ' has_error=' + Value.ToJSON;
+        if SameText(Value.ToJSON, 'true') then Severity := 1;
+      end;
+      Value := AResult.GetValue('ErrorCode');
+      if Value is TJSONNumber then Details := Details + ' error_code=' + Value.ToJSON;
+    end;
+    LogApiDiagnostic(Details, Severity);
+  except
+    // Logging must not alter the response or hide an application error.
+  end;
+end;
+
 function v1.GetArchivSection(const ASection: string): TJSONObject;
 var
   Metadata: TDSInvocationMetadata;
+  FetchStarted: TStopwatch;
 begin
-  Metadata := GetInvocationMetadata;
-  if CheckUser then
-    Result := GetArchivConfiguration_Intern(ASection)
-  else
-  begin
-    Metadata.ResponseCode := 401;
-    Result := TJSONObject.Create;
-    Result.AddPair('HasError', TJSONBool.Create(True));
-    Result.AddPair('ErrorCode', TJSONNumber.Create(401));
-    Result.AddPair('Errormessage', 'Nicht autorisiert.');
+  FetchStarted := TStopwatch.StartNew;
+  LogApiDiagnostic('app=PCMArchiv endpoint=' + 'Archiv/' + ASection + ' phase=started');
+  try
+    Metadata := GetInvocationMetadata;
+    if CheckUser then
+      Result := GetArchivConfiguration_Intern(ASection)
+    else
+    begin
+      Metadata.ResponseCode := 401;
+      Result := TJSONObject.Create;
+      Result.AddPair('HasError', TJSONBool.Create(True));
+      Result.AddPair('ErrorCode', TJSONNumber.Create(401));
+      Result.AddPair('Errormessage', 'Nicht autorisiert.');
+    end;
+    ResultToJSONContent(Result);
+    LogFetchResult('PCMArchiv', 'Archiv/' + ASection, Result, FetchStarted);
+  except
+    on E: Exception do
+    begin
+      LogApiDiagnostic(Format('app=PCMArchiv endpoint=%s phase=exception duration_ms=%d exception=%s',
+        ['Archiv/' + ASection, FetchStarted.ElapsedMilliseconds, E.ClassName]), 2);
+      raise;
+    end;
   end;
-  ResultToJSONContent(Result);
 end;
 
 function v1.UpdateGetArchivConfiguration: TJSONObject;
@@ -340,9 +388,23 @@ end;
 {$Region APP-Api}
 {$Region Server_Login}
 function v1.CheckServer: TJSonObject;
+var
+  FetchStarted: TStopwatch;
 begin
-  Result:= CheckServer_Intern;
-  ResultToJSONContent(Result);
+  FetchStarted := TStopwatch.StartNew;
+  LogApiDiagnostic('app=Shared endpoint=' + 'CheckServer' + ' phase=started');
+  try
+    Result:= CheckServer_Intern;
+    ResultToJSONContent(Result);
+    LogFetchResult('Shared', 'CheckServer', Result, FetchStarted);
+  except
+    on E: Exception do
+    begin
+      LogApiDiagnostic(Format('app=Shared endpoint=%s phase=exception duration_ms=%d exception=%s',
+        ['CheckServer', FetchStarted.ElapsedMilliseconds, E.ClassName]), 2);
+      raise;
+    end;
+  end;
 end;
 function v1.CheckLogin: TJSonObject;
 begin
@@ -350,9 +412,23 @@ begin
   ResultToJSONContent(Result);
 end;
 function v1.CheckLoginTime: TJSonObject;
+var
+  FetchStarted: TStopwatch;
 begin
-  Result:= CheckLoginTime_Intern;
-  ResultToJSONContent(Result);
+  FetchStarted := TStopwatch.StartNew;
+  LogApiDiagnostic('app=PCMTime endpoint=' + 'CheckLoginTime' + ' phase=started');
+  try
+    Result:= CheckLoginTime_Intern;
+    ResultToJSONContent(Result);
+    LogFetchResult('PCMTime', 'CheckLoginTime', Result, FetchStarted);
+  except
+    on E: Exception do
+    begin
+      LogApiDiagnostic(Format('app=PCMTime endpoint=%s phase=exception duration_ms=%d exception=%s',
+        ['CheckLoginTime', FetchStarted.ElapsedMilliseconds, E.ClassName]), 2);
+      raise;
+    end;
+  end;
 end;
 function TimePushResponse(const Request: TJSONObject; RegisterDevice: Boolean): TJSONObject;
 begin
@@ -981,48 +1057,74 @@ end;
 function v1.UpdateGetContactsZE: TJSonObject;
 var
   metaData: TDSInvocationMetadata;
+  FetchStarted: TStopwatch;
 begin
-  metaData := GetInvocationMetadata;
-  if CheckUserApp then
-  begin
-    if metaData.QueryParams.Count = 1 then
+  FetchStarted := TStopwatch.StartNew;
+  LogApiDiagnostic('app=PCMTime endpoint=' + 'UpdateGetContactsZE' + ' phase=started');
+  try
+    metaData := GetInvocationMetadata;
+    if CheckUserApp then
     begin
-      Result := GetContactsZE_Intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]));
+      if metaData.QueryParams.Count = 1 then
+      begin
+        Result := GetContactsZE_Intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]));
+      end
+      else
+      begin
+        metaData.ResponseCode:= 400;
+        Result := GetContactsZE_Intern('');
+      end;
     end
-    else
-    begin
-      metaData.ResponseCode:= 400;
-      Result := GetContactsZE_Intern('');
+    else begin
+      metaData.ResponseCode:= 401;
+      Result:= BadRequest;
     end;
-  end
-  else begin
-    metaData.ResponseCode:= 401;
-    Result:= BadRequest;
+    ResultToJSONContent(Result);
+    LogFetchResult('PCMTime', 'UpdateGetContactsZE', Result, FetchStarted);
+  except
+    on E: Exception do
+    begin
+      LogApiDiagnostic(Format('app=PCMTime endpoint=%s phase=exception duration_ms=%d exception=%s',
+        ['UpdateGetContactsZE', FetchStarted.ElapsedMilliseconds, E.ClassName]), 2);
+      raise;
+    end;
   end;
-  ResultToJSONContent(Result);
 end;
 function v1.UpdateGetLastBooking: TJSonObject;
 var
   metaData: TDSInvocationMetadata;
+  FetchStarted: TStopwatch;
 begin
-  metaData := GetInvocationMetadata;
-  if CheckUserApp then
-  begin
-    if metaData.QueryParams.Count = 1 then
+  FetchStarted := TStopwatch.StartNew;
+  LogApiDiagnostic('app=PCMTime endpoint=' + 'UpdateGetLastBooking' + ' phase=started');
+  try
+    metaData := GetInvocationMetadata;
+    if CheckUserApp then
     begin
-      Result := GetLastBooking_Intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]));
+      if metaData.QueryParams.Count = 1 then
+      begin
+        Result := GetLastBooking_Intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]));
+      end
+      else
+      begin
+        metaData.ResponseCode:= 400;
+        Result := GetPasswoerter_Intern('');
+      end;
     end
-    else
-    begin
-      metaData.ResponseCode:= 400;
-      Result := GetPasswoerter_Intern('');
+    else begin
+      metaData.ResponseCode:= 401;
+      Result:= BadRequest;
     end;
-  end
-  else begin
-    metaData.ResponseCode:= 401;
-    Result:= BadRequest;
+    ResultToJSONContent(Result);
+    LogFetchResult('PCMTime', 'UpdateGetLastBooking', Result, FetchStarted);
+  except
+    on E: Exception do
+    begin
+      LogApiDiagnostic(Format('app=PCMTime endpoint=%s phase=exception duration_ms=%d exception=%s',
+        ['UpdateGetLastBooking', FetchStarted.ElapsedMilliseconds, E.ClassName]), 2);
+      raise;
+    end;
   end;
-  ResultToJSONContent(Result);
 end;
 function v1.AcceptSetLastBooking(const AJSONObject: TJSONObject): TJSonObject;
 var
@@ -1065,71 +1167,110 @@ end;
 function v1.UpdateGetBookingYear: TJSonObject;
 var
   metaData: TDSInvocationMetadata;
+  FetchStarted: TStopwatch;
 begin
-  metaData := GetInvocationMetadata;
-  if CheckUserApp then
-  begin
-    if metaData.QueryParams.Count = 2 then
+  FetchStarted := TStopwatch.StartNew;
+  LogApiDiagnostic('app=PCMTime endpoint=' + 'UpdateGetBookingYear' + ' phase=started');
+  try
+    metaData := GetInvocationMetadata;
+    if CheckUserApp then
     begin
-      Result := GetBookingYear_Intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]),StringReplace(metaData.QueryParams[1],'Year=','',[rfReplaceAll,rfIgnoreCase]));
+      if metaData.QueryParams.Count = 2 then
+      begin
+        Result := GetBookingYear_Intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]),StringReplace(metaData.QueryParams[1],'Year=','',[rfReplaceAll,rfIgnoreCase]));
+      end
+      else
+      begin
+        metaData.ResponseCode:= 400;
+        Result := GetBookingYear_Intern('','');
+      end;
     end
-    else
-    begin
-      metaData.ResponseCode:= 400;
-      Result := GetBookingYear_Intern('','');
+    else begin
+      metaData.ResponseCode:= 401;
+      Result:= BadRequest;
     end;
-  end
-  else begin
-    metaData.ResponseCode:= 401;
-    Result:= BadRequest;
+    ResultToJSONContent(Result);
+    LogFetchResult('PCMTime', 'UpdateGetBookingYear', Result, FetchStarted);
+  except
+    on E: Exception do
+    begin
+      LogApiDiagnostic(Format('app=PCMTime endpoint=%s phase=exception duration_ms=%d exception=%s',
+        ['UpdateGetBookingYear', FetchStarted.ElapsedMilliseconds, E.ClassName]), 2);
+      raise;
+    end;
   end;
-  ResultToJSONContent(Result);
 end;
 function v1.UpdateGetAbsenceconfig: TJSonObject;
 var
   metaData: TDSInvocationMetadata;
+  FetchStarted: TStopwatch;
 begin
-  metaData := GetInvocationMetadata;
-  if CheckUserApp then
-  begin
-    if metaData.QueryParams.Count = 1 then
+  FetchStarted := TStopwatch.StartNew;
+  LogApiDiagnostic('app=PCMTime endpoint=' + 'UpdateGetAbsenceconfig' + ' phase=started');
+  try
+    metaData := GetInvocationMetadata;
+    if CheckUserApp then
     begin
-      Result := GetAbsenceconfig_Intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]));
+      if metaData.QueryParams.Count = 1 then
+      begin
+        Result := GetAbsenceconfig_Intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]));
+      end
+      else
+      begin
+        metaData.ResponseCode:= 400;
+        Result := GetAbsenceconfig_Intern('');
+      end;
     end
-    else
-    begin
-      metaData.ResponseCode:= 400;
-      Result := GetAbsenceconfig_Intern('');
+    else begin
+      metaData.ResponseCode:= 401;
+      Result:= BadRequest;
     end;
-  end
-  else begin
-    metaData.ResponseCode:= 401;
-    Result:= BadRequest;
+    ResultToJSONContent(Result);
+    LogFetchResult('PCMTime', 'UpdateGetAbsenceconfig', Result, FetchStarted);
+  except
+    on E: Exception do
+    begin
+      LogApiDiagnostic(Format('app=PCMTime endpoint=%s phase=exception duration_ms=%d exception=%s',
+        ['UpdateGetAbsenceconfig', FetchStarted.ElapsedMilliseconds, E.ClassName]), 2);
+      raise;
+    end;
   end;
-  ResultToJSONContent(Result);
 end;
 function v1.UpdateGetAbsence: TJSonObject;
 var
   metaData: TDSInvocationMetadata;
+  FetchStarted: TStopwatch;
 begin
-  metaData := GetInvocationMetadata;
-  if CheckUserApp then
-  begin
-    if metaData.QueryParams.Count = 1 then
+  FetchStarted := TStopwatch.StartNew;
+  LogApiDiagnostic('app=PCMTime endpoint=' + 'UpdateGetAbsence' + ' phase=started');
+  try
+    metaData := GetInvocationMetadata;
+    if CheckUserApp then
     begin
-      Result := GetAbsence_Intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]));
+      if metaData.QueryParams.Count = 1 then
+      begin
+        Result := GetAbsence_Intern(StringReplace(metaData.QueryParams[0],'ID_User=','',[rfReplaceAll,rfIgnoreCase]));
+      end
+      else
+      begin
+        metaData.ResponseCode:= 400;
+        Result := GetAbsence_Intern('');
+      end;
     end
-    else
-    begin
-      metaData.ResponseCode:= 400;
-      Result := GetAbsence_Intern('');
+    else begin
+      metaData.ResponseCode:= 401;
+      Result:= BadRequest;
     end;
-  end
-  else begin
-    metaData.ResponseCode:= 401;
-    Result:= BadRequest;
+    ResultToJSONContent(Result);
+    LogFetchResult('PCMTime', 'UpdateGetAbsence', Result, FetchStarted);
+  except
+    on E: Exception do
+    begin
+      LogApiDiagnostic(Format('app=PCMTime endpoint=%s phase=exception duration_ms=%d exception=%s',
+        ['UpdateGetAbsence', FetchStarted.ElapsedMilliseconds, E.ClassName]), 2);
+      raise;
+    end;
   end;
-  ResultToJSONContent(Result);
 end;
 function v1.AcceptSetOnlineBooking(const AJSONObject: TJSONObject): TJSonObject;
 var
