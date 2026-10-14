@@ -1077,7 +1077,10 @@ begin
     end
     else begin
       metaData.ResponseCode:= 401;
-      Result:= BadRequest;
+      Result := TJSONObject.Create;
+      Result.AddPair('HasError', TJSONBool.Create(True));
+      Result.AddPair('ErrorCode', TJSONNumber.Create(401));
+      Result.AddPair('Errormessage', 'Nicht fuer die Time-App autorisiert.');
     end;
     ResultToJSONContent(Result);
     LogFetchResult('PCMTime', 'UpdateGetContactsZE', Result, FetchStarted);
@@ -1113,7 +1116,10 @@ begin
     end
     else begin
       metaData.ResponseCode:= 401;
-      Result:= BadRequest;
+      Result := TJSONObject.Create;
+      Result.AddPair('HasError', TJSONBool.Create(True));
+      Result.AddPair('ErrorCode', TJSONNumber.Create(401));
+      Result.AddPair('Errormessage', 'Nicht fuer die Time-App autorisiert.');
     end;
     ResultToJSONContent(Result);
     LogFetchResult('PCMTime', 'UpdateGetLastBooking', Result, FetchStarted);
@@ -1131,7 +1137,7 @@ var
   metaData: TDSInvocationMetadata;
 begin
   metaData := GetInvocationMetadata;
-  if CheckUser then
+  if CheckUserApp then
   begin
     if metaData.QueryParams.Count = 1 then
     begin
@@ -1160,7 +1166,10 @@ begin
   end
   else begin
     metaData.ResponseCode:= 401;
-    Result:= BadRequest;
+    Result := TJSONObject.Create;
+      Result.AddPair('HasError', TJSONBool.Create(True));
+      Result.AddPair('ErrorCode', TJSONNumber.Create(401));
+      Result.AddPair('Errormessage', 'Nicht fuer die Time-App autorisiert.');
   end;
   ResultToJSONContent(Result)
 end;
@@ -1187,7 +1196,10 @@ begin
     end
     else begin
       metaData.ResponseCode:= 401;
-      Result:= BadRequest;
+      Result := TJSONObject.Create;
+      Result.AddPair('HasError', TJSONBool.Create(True));
+      Result.AddPair('ErrorCode', TJSONNumber.Create(401));
+      Result.AddPair('Errormessage', 'Nicht fuer die Time-App autorisiert.');
     end;
     ResultToJSONContent(Result);
     LogFetchResult('PCMTime', 'UpdateGetBookingYear', Result, FetchStarted);
@@ -1223,7 +1235,10 @@ begin
     end
     else begin
       metaData.ResponseCode:= 401;
-      Result:= BadRequest;
+      Result := TJSONObject.Create;
+      Result.AddPair('HasError', TJSONBool.Create(True));
+      Result.AddPair('ErrorCode', TJSONNumber.Create(401));
+      Result.AddPair('Errormessage', 'Nicht fuer die Time-App autorisiert.');
     end;
     ResultToJSONContent(Result);
     LogFetchResult('PCMTime', 'UpdateGetAbsenceconfig', Result, FetchStarted);
@@ -1259,7 +1274,10 @@ begin
     end
     else begin
       metaData.ResponseCode:= 401;
-      Result:= BadRequest;
+      Result := TJSONObject.Create;
+      Result.AddPair('HasError', TJSONBool.Create(True));
+      Result.AddPair('ErrorCode', TJSONNumber.Create(401));
+      Result.AddPair('Errormessage', 'Nicht fuer die Time-App autorisiert.');
     end;
     ResultToJSONContent(Result);
     LogFetchResult('PCMTime', 'UpdateGetAbsence', Result, FetchStarted);
@@ -1277,7 +1295,7 @@ var
   metaData: TDSInvocationMetadata;
 begin
   metaData := GetInvocationMetadata;
-  if CheckUser then
+  if CheckUserApp then
   begin
     if metaData.QueryParams.Count = 1 then
     begin
@@ -1306,7 +1324,10 @@ begin
   end
   else begin
     metaData.ResponseCode:= 401;
-    Result:= BadRequest;
+    Result := TJSONObject.Create;
+      Result.AddPair('HasError', TJSONBool.Create(True));
+      Result.AddPair('ErrorCode', TJSONNumber.Create(401));
+      Result.AddPair('Errormessage', 'Nicht fuer die Time-App autorisiert.');
   end;
   ResultToJSONContent(Result)
 end;

@@ -127,6 +127,7 @@ implementation
 
 uses
   {$Region Uses}
+  PCMService.Authentication,
   PCm.Calc,
   PCM.Data,
   PCM.Main,
@@ -316,7 +317,6 @@ begin
       sUser := TDSSessionManager.GetThreadSession.GetData('Username');
       sPass := TDSSessionManager.GetThreadSession.GetData('Password');
       WriteLog(PCM_Logname,'User: ' + sUser,0);
-      WriteLog(PCM_Logname,'Pass: ' + sPass,0);
       try
         qry_Work.Connection := conn; // Sollte gepoolt sein
         qry_Work.SQL.Text := 'SELECT ID,Benutzer, Passwort, RestApi FROM Benutzer WHERE Benutzer = :User';
@@ -341,43 +341,31 @@ begin
 end;
 function CheckUserApp: boolean;
 var
-  sUser, sPass: String;
-  qry_Work: TFDQuery;
-  conn: TFDConnection;
+  Conn: TFDConnection;
+  UserID: Integer;
+  Reason: string;
+  Session: TDSSession;
 begin
-  WriteLog(PCM_Logname,'CheckUser wird ausgeführt',0);
-  Result := false;
-  conn := TFDConnection.Create(nil);
+  Result := False;
+  Session := TDSSessionManager.GetThreadSession;
+  if Session = nil then
+  begin
+    WriteLog(PCM_Logname, '[MobileAPI] app=PCMTime auth=missing_session', 1);
+    Exit;
+  end;
+  Conn := TFDConnection.Create(nil);
   try
-    conn.ConnectionDefName := 'PCM';
-    conn.Connected := True;
-    qry_Work := TFDQuery.Create(nil);
-    try
-      sUser := TDSSessionManager.GetThreadSession.GetData('Username');
-      sPass := TDSSessionManager.GetThreadSession.GetData('Password');
-      try
-        qry_Work.Connection := conn; // Sollte gepoolt sein
-//        qry_Work.SQL.Text := 'SELECT ID,Benutzer, Passwort, RestApi FROM Benutzer WHERE Benutzer = :User';
-        qry_Work.SQL.Text := 'SELECT ID, Benutzer, Passwort, Zugriff_App FROM time_user WHERE Benutzer = :User';
-        qry_Work.ParamByName('User').AsString := sUser;
-        qry_Work.Open;
-
-        if qry_Work.RecordCount > 0 then
-          if (sPass = qry_Work.FieldByName('Passwort').AsString) and (qry_Work.FieldByName('Zugriff_App').AsBoolean) then
-            Result := true;
-      except
-        on E: Exception do
-        begin
-          WriteLog(PCM_Logname,'CheckUser exception: ' + E.Message, 3);
-        end;
-      end;
-    finally
-      qry_Work.Free;
-    end;
+    Conn.ConnectionDefName := 'PCM';
+    Conn.Connected := True;
+    Result := AuthenticateTimeAppUser(Conn, Session.GetData('Username'),
+      Session.GetData('Password'), UserID, Reason);
+    Session.PutData('TimeAuthReason', Reason);
+    WriteLog(PCM_Logname, '[MobileAPI] app=PCMTime auth=' + Reason, Ord(not Result));
   finally
-    conn.free;
+    Conn.Free;
   end;
 end;
+
 function CheckUserWeb: boolean;
 var
   sUser, sPass: String;
@@ -1063,91 +1051,55 @@ begin
 end;
 function CheckLoginTime_Intern: TJSONObject;
 var
-  sUser, sPass: String;
-  qry_Work: TFDQuery;
-  conn: TFDConnection;
+  Conn: TFDConnection;
+  Session: TDSSession;
+  UserID: Integer;
+  Reason: string;
+  Allowed: Boolean;
+  Login: TJSONObject;
+  Items: TJSONArray;
 begin
-  WriteLog(PCM_Logname,'CheckLogin_Intern wird ausgeführt', 0);
-  Result:= nil;
+  Result := TJSONObject.Create;
+  Conn := TFDConnection.Create(nil);
   try
-    joResponseJSON:= nil;
-    joResponseJSONData:= nil;
-    jaDetails:= nil;
-    sUser := TDSSessionManager.GetThreadSession.GetData('Username');
-    sPass := TDSSessionManager.GetThreadSession.GetData('Password');
-    if not Assigned(joResponseJSON) then
-      joResponseJSON := TJSONObject.Create;
-    conn := TFDConnection.Create(nil);
-    try
-      conn.ConnectionDefName := 'PCM';
-      conn.Connected := True;
-      qry_Work := TFDQuery.Create(nil);
-      try
-        qry_Work.Connection := conn; // Muss gepoolt und threadsicher sein
-        qry_Work.sql.text:= 'SELECT ID,Benutzer, Passwort, Zugriff_app FROM time_user WHERE Benutzer = :User';
-        qry_Work.ParamByName('User').AsString := sUser;
-        qry_Work.Open;
-        if qry_Work.RecordCount > 0 then
-        begin
-          if not Assigned(jaDetails) then
-            jaDetails := TJSONArray.Create;
-          if not Assigned(joResponseJSONData) then
-            joResponseJSONData := TJSONObject.Create;
-          if (sPass = qry_Work.FieldByName('Passwort').AsString) AND (qry_Work.FieldByName('Zugriff_app').AsBoolean = True) then
-          begin
-            iCode:= 200;
-            sMessage:= 'OK';
-            joResponseJSON.AddPair(TJSONPair.Create('HasError',TJSONBool.Create(false)));
-            joResponseJSON.AddPair(TJSONPair.Create('ErrorCode',TJSONNumber.Create(0)));
-            joResponseJSON.AddPair(TJSONPair.Create('Errormessage',TJSONString.Create('')));
-            joResponseJSONData.AddPair(TJSONPair.Create('Allowed', TJSONBool.Create(True)));
-            joResponseJSONData.AddPair(TJSONPair.Create('ID_User', TJSONNumber.Create(qry_Work.FieldByName('ID').asInteger)));
-            joResponseJSON.AddPair(TJSONPair.Create('User', sUser));
-            joResponseJSON.AddPair(TJSONPair.Create('Password', sPass));
-            jaDetails.Add(joResponseJSONData);
-            joResponseJSONData:= nil;
-          end else
-          begin
-            iCode:= 401;
-            sMessage:= 'Unauthorized';
-            joResponseJSON.AddPair(TJSONPair.Create('HasError',TJSONBool.Create(true)));
-            joResponseJSON.AddPair(TJSONPair.Create('ErrorCode',TJSONNumber.Create(1)));
-            joResponseJSON.AddPair(TJSONPair.Create('Errormessage',TJSONString.Create('Benutzer ' + sUSer + ' nicht berechtigt')));
-            joResponseJSONData.AddPair(TJSONPair.Create('Allowed', TJSONBool.Create(False)));
-            joResponseJSONData.AddPair(TJSONPair.Create('ID_User', TJSONNumber.Create(qry_Work.FieldByName('ID').asInteger)));
-            joResponseJSON.AddPair(TJSONPair.Create('User', sUser));
-            joResponseJSON.AddPair(TJSONPair.Create('Password', sPass));
-            jaDetails.Add(joResponseJSONData);
-            joResponseJSONData:= nil;
-          end;
-          joResponseJSON.AddPair(TJSONPair.Create('Login', jaDetails));
-        end
-        else begin
-          iCode:= 200;
-          sMessage:= 'OK';
-          joResponseJSON.AddPair(TJSONPair.Create('HasError',TJSONBool.Create(true)));
-          joResponseJSON.AddPair(TJSONPair.Create('ErrorCode',TJSONNumber.Create(1)));
-          joResponseJSON.AddPair(TJSONPair.Create('Errormessage',TJSONString.Create('Keine Datensätze vorhanden')));
-        end;
-        Result := joResponseJSON;
-      finally
-        qry_work.free;
-      end;
-    finally
-      conn.free;
-    end;
-  except
-    on e:exception do
+    Session := TDSSessionManager.GetThreadSession;
+    Allowed := False;
+    Reason := 'missing_session';
+    UserID := 0;
+    if Session <> nil then
     begin
-      iCode:= 409;
-      sMessage:= 'Database Error';
-      joResponseJSON.AddPair(TJSONPair.Create('HasError',TJSONBool.Create(true)));
-      joResponseJSON.AddPair(TJSONPair.Create('ErrorCode',TJSONNumber.Create(2)));
-      joResponseJSON.AddPair(TJSONPair.Create('Errormessage',TJSONString.Create('Keine Verbindung zur Datenbank. Grund:' + e.Message)));
-      WriteLog(PCM_Logname,'CheckLogin_Intern exception: ' + E.Message, 3);
+      Conn.ConnectionDefName := 'PCM';
+      Conn.Connected := True;
+      Allowed := AuthenticateTimeAppUser(Conn, Session.GetData('Username'),
+        Session.GetData('Password'), UserID, Reason);
     end;
+    WriteLog(PCM_Logname, '[MobileAPI] app=PCMTime login=' + Reason, Ord(not Allowed));
+    Result.AddPair('HasError', TJSONBool.Create(not Allowed));
+    if Allowed then
+    begin
+      Result.AddPair('ErrorCode', TJSONNumber.Create(0));
+      Result.AddPair('Errormessage', '');
+    end
+    else
+    begin
+      Result.AddPair('ErrorCode', TJSONNumber.Create(401));
+      Result.AddPair('Errormessage', 'Anmeldung nicht erlaubt: ' + Reason);
+    end;
+    Items := TJSONArray.Create;
+    Login := TJSONObject.Create;
+    Login.AddPair('Allowed', TJSONBool.Create(Allowed));
+    if not Allowed then UserID := 0;
+    Login.AddPair('ID_User', TJSONNumber.Create(UserID));
+    Items.AddElement(Login);
+    Result.AddPair('Login', Items);
+  except
+    Conn.Free;
+    Result.Free;
+    raise;
   end;
+  Conn.Free;
 end;
+
 function SetDeviceID_Intern(const AJSONObject: TJSONObject): TJSONObject;
 var
   iID_Benutzer: Integer;
