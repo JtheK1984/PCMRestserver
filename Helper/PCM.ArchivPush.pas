@@ -61,7 +61,7 @@ begin
       Query.Open;
       if Query.IsEmpty then raise Exception.Create('Archiv-Geraet nicht registriert. Bitte zuerst synchronisieren.');
       Query.Close;
-      Result := SendFirebaseNotification(Token, 'PCM-Archiv Push-Test', 'PCM-Archiv-Benachrichtigung erfolgreich',
+      Result := SendFirebaseNotification(Token, 'PCM - Archiv Test', 'PCM - Archiv Benachrichtigung erfolgreich',
         'PCM_ARCHIV_GOOGLE_APPLICATION_CREDENTIALS');
     end;
   finally

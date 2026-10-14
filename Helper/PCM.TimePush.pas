@@ -61,7 +61,7 @@ begin
       Query.Open;
       if Query.IsEmpty then raise Exception.Create('Time-Geraet nicht registriert. Bitte zuerst synchronisieren.');
       Query.Close;
-      Result := SendFirebaseNotification(Token, 'PCM-Time Push-Test', 'PCM-Time-Benachrichtigung erfolgreich',
+      Result := SendFirebaseNotification(Token, 'PCM - Time Test', 'PCM - Time Benachrichtigung erfolgreich',
         'PCM_TIME_GOOGLE_APPLICATION_CREDENTIALS');
     end;
   finally
@@ -69,3 +69,4 @@ begin
   end;
 end;
 end.
+

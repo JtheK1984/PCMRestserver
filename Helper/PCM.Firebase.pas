@@ -191,7 +191,7 @@ end;
 
 function SendFirebaseTest(const ADeviceToken: string): TJSONObject;
 begin
-  Result := SendFirebaseNotification(ADeviceToken, 'App-Benachrichtigung Test',
-    'App-Benachrichtigung Test erfolgreich');
+  Result := SendFirebaseNotification(ADeviceToken, 'PCM - APP Test',
+    'PCM - APP Benachrichtigung Test erfolgreich');
 end;
 end.

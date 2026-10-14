@@ -166,7 +166,6 @@ var
   qry_Work: TFDQuery;
   conn: TFDConnection;
 begin
-  WriteLog(PCM_Logname,'BadRequest wird ausgeführt',0);
   Result := nil;
   joResponseJSON := TJSONObject.Create;
   conn := TFDConnection.Create(nil);
@@ -214,7 +213,6 @@ begin
           Result.AddPair('HasError', TJSONBool.Create(true));
           Result.AddPair('ErrorCode', TJSONNumber.Create(99));
           Result.AddPair('Errormessage', TJSONString.Create('Exception: ' + E.Message));
-          WriteLog(PCM_Logname,'BadRequest exception: ' + E.Message, 3);
         end;
       end;
     finally
@@ -316,7 +314,6 @@ begin
     try
       sUser := TDSSessionManager.GetThreadSession.GetData('Username');
       sPass := TDSSessionManager.GetThreadSession.GetData('Password');
-      WriteLog(PCM_Logname,'User: ' + sUser,0);
       try
         qry_Work.Connection := conn; // Sollte gepoolt sein
         qry_Work.SQL.Text := 'SELECT ID,Benutzer, Passwort, RestApi FROM Benutzer WHERE Benutzer = :User';
@@ -360,7 +357,6 @@ begin
     Result := AuthenticateTimeAppUser(Conn, Session.GetData('Username'),
       Session.GetData('Password'), UserID, Reason);
     Session.PutData('TimeAuthReason', Reason);
-    WriteLog(PCM_Logname, '[MobileAPI] app=PCMTime auth=' + Reason, Ord(not Result));
   finally
     Conn.Free;
   end;
@@ -410,7 +406,6 @@ var
   conn: TFDConnection;
   qry_Update: TFDQuery;
 begin
-  WriteLog(PCM_Logname,'UpdateFieldValues_String wird ausgeführt',0);
   conn := TFDConnection.Create(nil);
   try
     conn.ConnectionDefName := 'PCM';
@@ -441,7 +436,6 @@ var
   conn: TFDConnection;
   qry_Update: TFDQuery;
 begin
-  WriteLog(PCM_Logname,'UpdateFieldValues_Ansistring wird ausgeführt',0);
   conn := TFDConnection.Create(nil);
   try
     conn.ConnectionDefName := 'PCM';
@@ -472,7 +466,6 @@ var
   conn: TFDConnection;
   qry_Update: TFDQuery;
 begin
-  WriteLog(PCM_Logname,'UpdateFieldValues_TDateTime wird ausgeführt',0);
   conn := TFDConnection.Create(nil);
   try
     conn.ConnectionDefName := 'PCM';
@@ -503,7 +496,6 @@ var
   conn: TFDConnection;
   qry_Update: TFDQuery;
 begin
-  WriteLog(PCM_Logname,'UpdateFieldValues_TDate wird ausgeführt',0);
   conn := TFDConnection.Create(nil);
   try
     conn.ConnectionDefName := 'PCM';
@@ -534,7 +526,6 @@ var
   conn: TFDConnection;
   qry_Update: TFDQuery;
 begin
-  WriteLog(PCM_Logname,'UpdateFieldValues_Boolean wird ausgeführt',0);
   conn := TFDConnection.Create(nil);
   try
     conn.ConnectionDefName := 'PCM';
@@ -565,7 +556,6 @@ var
   conn: TFDConnection;
   qry_Update: TFDQuery;
 begin
-  WriteLog(PCM_Logname,'UpdateFieldValues_Integer wird ausgeführt',0);
   conn := TFDConnection.Create(nil);
   try
     conn.ConnectionDefName := 'PCM';
@@ -596,7 +586,6 @@ var
   conn: TFDConnection;
   qry_Update: TFDQuery;
 begin
-  WriteLog(PCM_Logname,'UpdateFieldValues_Float wird ausgeführt',0);
   conn := TFDConnection.Create(nil);
   try
     conn.ConnectionDefName := 'PCM';
