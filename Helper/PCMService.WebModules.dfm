@@ -7,6 +7,7 @@ object webPCMModul: TwebPCMModul
       OnAction = WebModule1DefaultHandlerAction
     end>
   BeforeDispatch = WebModuleBeforeDispatch
+  AfterDispatch = WebModuleAfterDispatch
   Height = 500
   Width = 621
   PixelsPerInch = 144

@@ -107,6 +107,9 @@ uses
 // Datamodulfunctions                                                         //
 ////////////////////////////////////////////////////////////////////////////////
 {$Region Datamodul}
+var
+  LogWriteLock: TObject;
+
 procedure WriteLog(AProgram, ALogString: String; AError: integer);
 var
   tfLog: TextFile;
@@ -114,6 +117,8 @@ var
   sLogLine: String;
   sFilePath: String;
 begin
+  TMonitor.Enter(LogWriteLock);
+  try
   case DayOfWeek(Date) of
   1: sTag := 'So';
   2: sTag := 'Mo';
@@ -145,6 +150,9 @@ begin
     Rewrite(tfLog);
   Writeln(tfLog, sLogLine + ALogString);
   CloseFile(tfLog);
+  finally
+    TMonitor.Exit(LogWriteLock);
+  end;
 end;
 
 procedure Tdm_PCM.con_PCMBeforeConnect(Sender: TObject);
@@ -248,4 +256,8 @@ begin
   end;
 end;
 {$EndRegion Datamodul}
+initialization
+  LogWriteLock := TObject.Create;
+finalization
+  LogWriteLock.Free;
 end.

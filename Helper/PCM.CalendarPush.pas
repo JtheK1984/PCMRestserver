@@ -41,22 +41,22 @@ begin
 end;
 constructor TCalendarPushWorker.Create;
 begin
-  inherited Create(True);
+  // AfterConstruction starts the worker once all fields are initialized.
+  inherited Create(False);
   FreeOnTerminate := False;
   FWake := TEvent.Create(nil, True, False, '');
-  Start;
 end;
 
 procedure TCalendarPushWorker.Stop;
 begin
   Terminate;
-  FWake.SetEvent;
+  if FWake <> nil then FWake.SetEvent;
   WaitFor;
 end;
 
 destructor TCalendarPushWorker.Destroy;
 begin
-  Stop;
+  if FWake <> nil then Stop;
   FWake.Free;
   inherited;
 end;

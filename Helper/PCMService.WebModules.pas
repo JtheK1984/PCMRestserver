@@ -4,7 +4,7 @@ interface
 
 uses
   {$Region Uses}
-  System.SysUtils, System.Classes, IdHashMessageDigest,
+  System.SysUtils, System.Classes, System.SyncObjs, Winapi.Windows, IdHashMessageDigest,
   Web.HTTPApp, Web.WebFileDispatcher, Web.HTTPProd,
   Datasnap.DSHTTPWebBroker, Datasnap.DSServer, DataSnap.DSAuth, Datasnap.DSCommonServer,
   IPPeerServer, IdContext, Datasnap.DSHTTP, Data.DBXPlatform,
@@ -26,12 +26,15 @@ type
     procedure WebModule1DefaultHandlerAction(Sender: TObject; Request: TWebRequest; Response: TWebResponse; var Handled: Boolean);
     procedure dsSrvClassService_V1GetClass(DSServerClass: TDSServerClass; var PersistentClass: TPersistentClass);
     procedure WebModuleBeforeDispatch(Sender: TObject; Request: TWebRequest; Response: TWebResponse; var Handled: Boolean);
+    procedure WebModuleAfterDispatch(Sender: TObject; Request: TWebRequest; Response: TWebResponse; var Handled: Boolean);
   private
-    { Private-Deklarationen }
+    FApiStarted: UInt64;
   public
     { Public-Deklarationen }
   end;
   {$EndRegion Type}
+procedure LogApiDiagnostic(const AMessage: string; ASeverity: Integer = 0);
+
 var
   {$Region Var}
   WebModuleClass: TComponentClass = TwebPCMModul;
@@ -49,6 +52,21 @@ uses
   PCM.Data;
 
   {$EndRegion Uses}
+var
+  ApiRequestCounter: Int64;
+threadvar
+  ApiRequestID: Int64;
+
+procedure LogApiDiagnostic(const AMessage: string; ASeverity: Integer);
+begin
+  try
+    WriteLog(PCM_Logname, Format('[MobileAPI request=%d thread=%d] %s',
+      [ApiRequestID, GetCurrentThreadId, AMessage]), ASeverity);
+  except
+    // Diagnostic output must never break an API request.
+  end;
+end;
+
 ////////////////////////////////////////////////////////////////////////////////
 // Procedures                                                                 //
 ////////////////////////////////////////////////////////////////////////////////
@@ -74,7 +92,17 @@ end;
 //  end;
 //end;
 procedure TwebPCMModul.WebModuleBeforeDispatch(Sender: TObject; Request: TWebRequest; Response: TWebResponse; var Handled: Boolean);
+var
+  Endpoint: string;
 begin
+  FApiStarted := GetTickCount64;
+  ApiRequestID := TInterlocked.Increment(ApiRequestCounter);
+  Endpoint := Copy(Request.PathInfo, 1, 200);
+  Endpoint := StringReplace(Endpoint, #13, '', [rfReplaceAll]);
+  Endpoint := StringReplace(Endpoint, #10, '', [rfReplaceAll]);
+  if Pos('/pcm/api', LowerCase(Endpoint)) = 1 then
+    LogApiDiagnostic('phase=received method=' + Request.Method +
+      ' endpoint=' + Endpoint);
   Response.SetCustomHeader('Access-Control-Allow-Origin', '*');
   Response.SetCustomHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS, DELETE, PUT');
 
@@ -94,6 +122,16 @@ begin
 end;
 
 
+procedure TwebPCMModul.WebModuleAfterDispatch(Sender: TObject; Request: TWebRequest; Response: TWebResponse; var Handled: Boolean);
+var
+  Severity: Integer;
+begin
+  if Pos('/pcm/api', LowerCase(Request.PathInfo)) <> 1 then Exit;
+  Severity := 0;
+  if Response.StatusCode >= 400 then Severity := 1;
+  LogApiDiagnostic(Format('phase=http_completed http=%d duration_ms=%d',
+    [Response.StatusCode, GetTickCount64 - FApiStarted]), Severity);
+end;
 procedure TwebPCMModul.dsSrvClassAuthGetClass(DSServerClass: TDSServerClass; var PersistentClass: TPersistentClass);
 begin
   PersistentClass := PCMService.vers0.v0;
